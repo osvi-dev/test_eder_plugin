@@ -117,6 +117,8 @@ $result = $DB->get_record('learningstylesurvey_quiz_results', [
     'courseid' => $courseid
 ]);
 
+if ($result) {$retry = true;}
+
 // Si es un reintento y existe un resultado previo, eliminarlo
 if ($retry && $result) {
     $deleted = $DB->delete_records('learningstylesurvey_quiz_results', [
@@ -187,10 +189,26 @@ if ($result && $result->score < 70) {
     }
 }
 
+
+
 if ($result && !$retry && !$auto_retry) {
     echo "<div class='alert alert-success' style='font-size: 14px;'>
         ✅ Examen ya completado - Score: {$result->score}% - " . date('Y-m-d H:i:s', $result->timecompleted) . "
     </div>";
+        echo "</div>";
+    
+    // También ofrecer reintento inmediato si el estudiante lo desea
+    $retryurl = new moodle_url('/mod/learningstylesurvey/quiz/responder_quiz.php', [
+        'id' => $quizid,
+        'courseid' => $courseid,
+        'embedded' => 1,
+        'retry' => 1,
+        'cmid' => $cmid
+    ]);
+    // echo "<div style='text-align:center; margin:10px 0;'>";
+    // echo "<a href='{$retryurl}' class='btn btn-primary btn-lg' style='padding:10px 20px; text-decoration:none; background:#007bff; color:#fff; border-radius:5px;'>Reintentar examen</a>";
+    // echo "</div>";
+
 } else if ($retry) {
     echo "<div class='alert alert-success'>🔄 Reintento solicitado</div>";
 }
@@ -319,6 +337,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     echo "<a href='{$refuerzourl}' class='btn btn-warning btn-lg' style='margin:10px; padding:12px 25px; font-size:16px; text-decoration:none; background:#ffc107; color:#000; border-radius:5px; display:inline-block;'>Ir al material de refuerzo</a>";
                     echo "</div>";
                     
+                    // Permitir reintento desde la vista de refuerzo
+                    $retryurl = new moodle_url('/mod/learningstylesurvey/quiz/responder_quiz.php', [
+                        'id' => $quizid,
+                        'courseid' => $courseid,
+                        'embedded' => 1,
+                        'retry' => 1,
+                        'from_refuerzo' => 1,
+                        'cmid' => $cmid
+                    ]);
+                    echo "<div style='text-align:center; margin:10px 0;'>";
+                    echo "<a href='{$retryurl}' class='btn btn-primary btn-lg' style='padding:10px 20px; text-decoration:none; background:#007bff; color:#fff; border-radius:5px;'>Reintentar examen</a>";
+                    echo "</div>";
+                    
 
                 } else {
                     // NO ES TEMA DE REFUERZO: Tema asignado para revisión
@@ -340,6 +371,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     echo "<div style='text-align:center; margin:20px 0;'>";
                     echo "<a href='{$saltourl}' class='btn btn-info btn-lg' style='margin:10px; padding:12px 25px; font-size:16px; text-decoration:none; background:#17a2b8; color:white; border-radius:5px; display:inline-block;'>Ir al material asignado</a>";
                     echo "</div>";
+
+
+
+                    /* 
+                    
+                    MODIFIQUE ESTOOOOOOOOOOOOOOOOOO
+                    
+                    */
+
+
+                    // // También ofrecer reintento inmediato si el estudiante lo desea
+                    // $retryurl = new moodle_url('/mod/learningstylesurvey/quiz/responder_quiz.php', [
+                    //     'id' => $quizid,
+                    //     'courseid' => $courseid,
+                    //     'embedded' => 1,
+                    //     'retry' => 1,
+                    //     'cmid' => $cmid
+                    // ]);
+                    // echo "<div style='text-align:center; margin:10px 0;'>";
+                    // echo "<a href='{$retryurl}' class='btn btn-primary btn-lg' style='padding:10px 20px; text-decoration:none; background:#007bff; color:#fff; border-radius:5px;'>Reintentar examen</a>";
+                    // echo "</div>";
                     
 
                 }
@@ -349,9 +401,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 echo "<h4>� Preparando nuevo intento</h4>";
                 echo "<p>No se encontró material adicional. Puedes intentar el examen nuevamente cuando estés listo.</p>";
                 echo "</div>";
-                
-
-
 
             }
         } else {
