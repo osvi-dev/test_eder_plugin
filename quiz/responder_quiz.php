@@ -175,7 +175,7 @@ if ($result && $result->score < 70) {
         ORDER BY s.id DESC LIMIT 1
     ", [$result->quizid]);
     
-    if ($step_check && $step_check->failredirect) {
+    if ($step_check && $step_check->failredirect && $step_check->failredirect > 0) {
         // HAY salto configurado - NO hacer reintento automático
         echo "<div class='alert alert-warning'>⚠️ Resultado anterior reprobatorio ({$result->score}%). Se aplicará el salto programado.</div>";
         $auto_retry = false;
@@ -253,7 +253,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ORDER BY s.id DESC LIMIT 1
         ", [$quizid]);
         
-        if ($step && $step->passredirect) {
+        if ($step && $step->passredirect && $step->passredirect > 0) {
             // Salto programado después de aprobar
             $target_resource = $DB->get_record('learningstylesurvey_resources', ['id' => $step->passredirect]);
             
@@ -273,13 +273,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
             }
         } else {
-            // Si no hay salto configurado, continuar con la ruta normal
+            // Si no hay salto configurado, verificar si hay más pasos después de este examen
             if ($step) {
-                $nexturl = new moodle_url('/mod/learningstylesurvey/path/vista_estudiante.php', [
-                    'courseid' => $courseid,
-                    'pathid' => $step->pathid,
-                    'cmid' => $cmid
-                ]);
+                // Obtener el estilo del usuario para verificar siguientes pasos
+                $userstyle = $DB->get_record_sql("
+                    SELECT style FROM {learningstylesurvey_userstyles}
+                    WHERE userid = ? ORDER BY timecreated DESC LIMIT 1
+                ", [$userid]);
+                
+                // Si el estilo es null, mandamos el mensaje que debe de completar la encuesta
+                $style = $userstyle ? $userstyle->style : null;
+
+                if (!$style) {
+                    // Redirigir a hacer la encuesta o mostrar error
+                    throw new moodle_exception('Debes completar la encuesta de estilos de aprendizaje primero');
+                }
+                
+                // Buscar si hay más pasos después de este examen
+                $nextstep = $DB->get_record_sql("
+                    SELECT s.* FROM {learningpath_steps} s
+                    LEFT JOIN {learningstylesurvey_resources} r ON s.resourceid = r.id AND s.istest = 0
+                    LEFT JOIN {learningstylesurvey_path_temas} pt ON pt.temaid = r.tema AND pt.pathid = s.pathid
+                    WHERE s.pathid = ? AND s.stepnumber > ?
+                    AND (
+                        (s.istest = 1) OR 
+                        (s.istest = 0 AND r.style = ? AND r.courseid = ? AND (pt.isrefuerzo = 0 OR pt.isrefuerzo IS NULL))
+                    )
+                    ORDER BY s.stepnumber ASC LIMIT 1
+                ", [$step->pathid, $step->stepnumber, $style, $courseid]);
+                
+                if ($nextstep) {
+                    // Hay más pasos - continuar con la ruta
+                    $nexturl = new moodle_url('/mod/learningstylesurvey/path/vista_estudiante.php', [
+                        'courseid' => $courseid,
+                        'pathid' => $step->pathid,
+                        'cmid' => $cmid
+                    ]);
+                } else {
+                    // No hay más pasos - ruta completada
+                    $nexturl = new moodle_url('/mod/learningstylesurvey/path/vista_estudiante.php', [
+                        'courseid' => $courseid,
+                        'pathid' => $step->pathid,
+                        'completed' => 1,
+                        'cmid' => $cmid
+                    ]);
+                }
             } else {
                 // Fallback al menú principal
                 $nexturl = new moodle_url('/mod/learningstylesurvey/view.php', ['id' => $cmid]);
@@ -305,7 +343,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ORDER BY s.id DESC LIMIT 1
         ", [$quizid]);
         
-        if ($step && $step->failredirect) {
+        if ($step && $step->failredirect && $step->failredirect > 0) {
             $target_resource = $DB->get_record('learningstylesurvey_resources', ['id' => $step->failredirect]);
             
             if ($target_resource) {
@@ -441,7 +479,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ORDER BY s.id DESC LIMIT 1
         ", [$quizid]);
         
-        if ($step && $step->failredirect) {
+        if ($step && $step->failredirect && $step->failredirect > 0) {
             $target_resource = $DB->get_record('learningstylesurvey_resources', ['id' => $step->failredirect]);
             
             if ($target_resource) {
@@ -542,18 +580,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         }
     } else {
-        // Está aprobado - continuar con la ruta
+        // Está aprobado - verificar si es el último paso para mostrar mensaje de completitud
         echo "<div class='alert alert-success' style='text-align:center; margin-top:20px;'>";
         echo "<h4>✅ Examen ya aprobado</h4>";
-        echo "<p>Tu resultado anterior fue exitoso. Continuando con la ruta de aprendizaje...</p>";
+        echo "<p>Tu resultado anterior fue exitoso ({$result->score}%). Continuando con la ruta de aprendizaje...</p>";
         echo "</div>";
         
-
+        $step = $DB->get_record_sql("
+            SELECT s.* FROM {learningpath_steps} s 
+            WHERE s.resourceid = ? AND s.istest = 1
+            ORDER BY s.id DESC LIMIT 1
+        ", [$quizid]);
         
-        $returnurl = new moodle_url('/mod/learningstylesurvey/path/vista_estudiante.php', [
-            'courseid' => $courseid,
-            'cmid' => $cmid
-        ]);
+        if ($step) {
+            // Obtener el estilo del usuario
+            $userstyle = $DB->get_record_sql("
+                SELECT style FROM {learningstylesurvey_userstyles}
+                WHERE userid = ? ORDER BY timecreated DESC LIMIT 1
+            ", [$userid]);
+            
+            $style = $userstyle ? $userstyle->style : null;
+            
+            if ($style) {
+                // Buscar si hay más pasos después de este examen
+                $nextstep = $DB->get_record_sql("
+                    SELECT s.* FROM {learningpath_steps} s
+                    LEFT JOIN {learningstylesurvey_resources} r ON s.resourceid = r.id AND s.istest = 0
+                    LEFT JOIN {learningstylesurvey_path_temas} pt ON pt.temaid = r.tema AND pt.pathid = s.pathid
+                    WHERE s.pathid = ? AND s.stepnumber > ?
+                    AND (
+                        (s.istest = 1) OR 
+                        (s.istest = 0 AND r.style = ? AND r.courseid = ? AND (pt.isrefuerzo = 0 OR pt.isrefuerzo IS NULL))
+                    )
+                    ORDER BY s.stepnumber ASC LIMIT 1
+                ", [$step->pathid, $step->stepnumber, $style, $courseid]);
+                
+                if ($nextstep) {
+                    // Hay más pasos - continuar con la ruta
+                    $returnurl = new moodle_url('/mod/learningstylesurvey/path/vista_estudiante.php', [
+                        'courseid' => $courseid,
+                        'pathid' => $step->pathid,
+                        'cmid' => $cmid
+                    ]);
+                } else {
+                    // No hay más pasos - ruta completada
+                    $returnurl = new moodle_url('/mod/learningstylesurvey/path/vista_estudiante.php', [
+                        'courseid' => $courseid,
+                        'pathid' => $step->pathid,
+                        'completed' => 1,
+                        'cmid' => $cmid
+                    ]);
+                }
+            } else {
+                // Sin estilo definido, ir al menú
+                $returnurl = new moodle_url('/mod/learningstylesurvey/path/vista_estudiante.php', [
+                    'courseid' => $courseid,
+                    'cmid' => $cmid
+                ]);
+            }
+        } else {
+            // No se encontró el paso, ir a vista general
+            $returnurl = new moodle_url('/mod/learningstylesurvey/path/vista_estudiante.php', [
+                'courseid' => $courseid,
+                'cmid' => $cmid
+            ]);
+        }
         
         echo "<div style='text-align:center; margin:20px 0;'>";
         echo "<a href='{$returnurl}' class='btn btn-success btn-lg' style='margin:10px; padding:12px 25px; font-size:16px; text-decoration:none; background:#28a745; color:#fff; border-radius:5px; display:inline-block;'>Continuar ruta</a>";
