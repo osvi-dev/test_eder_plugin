@@ -658,6 +658,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Mostrar formulario: cuando no hay resultado, viene con retry, o auto_retry está activo
     $questions = $DB->get_records('learningstylesurvey_questions', ['quizid' => $quizid]);
     
+    // Le hacemos un shuffle a las preguntas
+    $questions_array = array_values($questions); // Convertir a array indexado
+    shuffle($questions_array); // Mezclar aleatoriamente
+    
     if ($auto_retry) {
         echo "<div class='alert alert-info'>";
         echo "<h4>🔄 Nuevo intento</h4>";
@@ -667,11 +671,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     echo '<form method="post" action="">'; 
     echo '<div style="margin: 20px 0;">';
-    foreach ($questions as $index => $q) {
-        // ✅ Ordenar opciones por ID para mantener consistencia
+    $question_number = 1; // Contador para mostrar el número de pregunta
+    foreach ($questions_array as $q) {
+        // Obtenemos opciones y mezclarlas
         $options = $DB->get_records('learningstylesurvey_options', ['questionid' => $q->id], 'id ASC');
+
         echo "<div style='margin-bottom:25px; padding:15px; border:1px solid #ddd; border-radius:5px; background:#f9f9f9;'>";
-        echo "<h4 style='margin-bottom:15px; color:#333;'>" . format_string($q->questiontext) . "</h4>";
+        echo "<h4 style='margin-bottom:15px; color:#333;'>Pregunta {$question_number}: " . format_string($q->questiontext) . "</h4>";
+        
         foreach ($options as $opt) {
             $radio_id = "q{$q->id}_opt{$opt->id}";
             echo "<div style='margin-bottom:10px;'>";
@@ -680,6 +687,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo "</div>";
         }
         echo "</div>";
+        $question_number++;
     }
     echo '<div style="text-align:center; margin-top:30px;">
             <input type="submit" value="Enviar respuestas" style="padding:12px 30px; font-size:16px; background:#007bff; color:white; border:none; border-radius:5px; cursor:pointer;">
