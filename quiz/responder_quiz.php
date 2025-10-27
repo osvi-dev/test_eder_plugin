@@ -671,9 +671,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     echo '<form method="post" action="">'; 
     echo '<div style="margin: 20px 0;">';
-    $question_number = 1; // Contador para mostrar el número de pregunta
+    
+    // Contador para cada pregunta
+    $question_number = 1;
     foreach ($questions_array as $q) {
-        // Obtenemos opciones y mezclarlas
+        // ✅ Ordenar opciones por ID para mantener consistencia
         $options = $DB->get_records('learningstylesurvey_options', ['questionid' => $q->id], 'id ASC');
 
         echo "<div style='margin-bottom:25px; padding:15px; border:1px solid #ddd; border-radius:5px; background:#f9f9f9;'>";
@@ -689,9 +691,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo "</div>";
         $question_number++;
     }
-    echo '<div style="text-align:center; margin-top:30px;">
-            <input type="submit" value="Enviar respuestas" style="padding:12px 30px; font-size:16px; background:#007bff; color:white; border:none; border-radius:5px; cursor:pointer;">
-          </div>';
+
+    $cancelurl = new moodle_url('/mod/learningstylesurvey/view.php', ['id' => $cmid]);
+    
+    echo '<div style="text-align:center; margin-top:30px;">';
+    echo '<input type="submit" value="Enviar respuestas" style="padding:12px 30px; margin:10px; font-size:16px; background:#28a745; color:white; border:none; border-radius:5px; cursor:pointer;">';
+    echo '<a href="' . $cancelurl . '" class="btn" style="padding:12px 30px; margin:10px; font-size:16px; background:#dc3545; color:white; border:none; border-radius:5px; cursor:pointer; text-decoration:none; display:inline-block;">Cancelar intento</a>';
+    echo '</div>';
     echo '</div>';
     echo '</form>';
 }
