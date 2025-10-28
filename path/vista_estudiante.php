@@ -682,6 +682,31 @@ if ($tema_refuerzo) {
 if ($stepid) {
     $step = $DB->get_record('learningpath_steps', ['id' => $stepid]);
     if ($step) {
+        // Actualizamos el progreso del usuario para que apunte a este paso
+        // Esto es crítico cuando se viene de un tema_salto y se va al examen
+        $progress = $DB->get_record('learningstylesurvey_user_progress', [
+            'userid' => $USER->id,
+            'pathid' => $pathid
+        ]);
+        
+        if ($progress) {
+            // Actualizar progreso existente
+            $progress->current_stepid = $stepid;
+            $progress->timemodified = time();
+            $DB->update_record('learningstylesurvey_user_progress', $progress);
+        } else {
+            // Crear nuevo progreso
+            $new_progress = (object)[
+                'userid' => $USER->id,
+                'pathid' => $pathid,
+                'current_stepid' => $stepid,
+                'status' => 'inprogress',
+                'timecreated' => time(),
+                'timemodified' => time()
+            ];
+            $DB->insert_record('learningstylesurvey_user_progress', $new_progress);
+        }
+        
         if ($step->istest) {
             // Si es un examen, redirigir automáticamente (sin botón)
             $quizurl = new moodle_url('/mod/learningstylesurvey/quiz/responder_quiz.php', [

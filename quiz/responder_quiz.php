@@ -12,6 +12,7 @@ $quizid   = required_param('id', PARAM_INT);
 $courseid = optional_param('courseid', 0, PARAM_INT);
 $userid   = $USER->id;
 
+
 // Validar courseid
 if (!$courseid) {
     // Intentar obtener courseid desde el quiz
@@ -205,9 +206,6 @@ if ($result && !$retry && !$auto_retry) {
         'retry' => 1,
         'cmid' => $cmid
     ]);
-    // echo "<div style='text-align:center; margin:10px 0;'>";
-    // echo "<a href='{$retryurl}' class='btn btn-primary btn-lg' style='padding:10px 20px; text-decoration:none; background:#007bff; color:#fff; border-radius:5px;'>Reintentar examen</a>";
-    // echo "</div>";
 
 } else if ($retry) {
     echo "<div class='alert alert-success'>🔄 Reintento solicitado</div>";
@@ -409,28 +407,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     echo "<div style='text-align:center; margin:20px 0;'>";
                     echo "<a href='{$saltourl}' class='btn btn-info btn-lg' style='margin:10px; padding:12px 25px; font-size:16px; text-decoration:none; background:#17a2b8; color:white; border-radius:5px; display:inline-block;'>Ir al material asignado</a>";
                     echo "</div>";
-
-
-
-                    /* 
-                    
-                    MODIFIQUE ESTOOOOOOOOOOOOOOOOOO
-                    
-                    */
-
-
-                    // // También ofrecer reintento inmediato si el estudiante lo desea
-                    // $retryurl = new moodle_url('/mod/learningstylesurvey/quiz/responder_quiz.php', [
-                    //     'id' => $quizid,
-                    //     'courseid' => $courseid,
-                    //     'embedded' => 1,
-                    //     'retry' => 1,
-                    //     'cmid' => $cmid
-                    // ]);
-                    // echo "<div style='text-align:center; margin:10px 0;'>";
-                    // echo "<a href='{$retryurl}' class='btn btn-primary btn-lg' style='padding:10px 20px; text-decoration:none; background:#007bff; color:#fff; border-radius:5px;'>Reintentar examen</a>";
-                    // echo "</div>";
-                    
 
                 }
             } else {
