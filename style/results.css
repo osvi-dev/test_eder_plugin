@@ -1,0 +1,324 @@
+/* ── Results Container ── */
+.ils-results {
+    max-width: 900px;
+    margin: 0 auto 40px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* ── Header ── */
+.ils-results-header {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.ils-results-header h2 {
+    font-size: 1.7rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 6px;
+}
+
+.ils-results-header p {
+    color: #64748b;
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+/* ── User Selector ── */
+.ils-selector-wrapper {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 32px;
+}
+
+.ils-selector-wrapper select {
+    padding: 10px 18px;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 0.92rem;
+    color: #334155;
+    background: white;
+    cursor: pointer;
+    min-width: 280px;
+    transition: border-color 0.2s;
+    appearance: auto;
+}
+
+.ils-selector-wrapper select:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/* ── Strongest Style Banner ── */
+.ils-strongest {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+    border: 2px solid #c7d2fe;
+    border-radius: 18px;
+    padding: 24px 28px;
+    margin-bottom: 32px;
+    animation: ilsPulseIn 0.6s ease;
+}
+
+@keyframes ilsPulseIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    60% {
+        transform: scale(1.02);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.ils-strongest-icon {
+    font-size: 2.4rem;
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+    flex-shrink: 0;
+}
+
+.ils-strongest-info h3 {
+    margin: 0 0 2px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #6366f1;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ils-strongest-info h2 {
+    margin: 0 0 4px;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.ils-strongest-info p {
+    margin: 0;
+    font-size: 0.88rem;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+/* ── Content Grid ── */
+.ils-content-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    margin-bottom: 32px;
+}
+
+@media (max-width: 760px) {
+    .ils-content-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ── Chart Card ── */
+.ils-chart-card {
+    background: white;
+    border: 1px solid #e8ecf1;
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+.ils-chart-card h4 {
+    margin: 0 0 16px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #334155;
+}
+
+.ils-chart-wrapper {
+    position: relative;
+    max-width: 320px;
+    margin: 0 auto;
+}
+
+/* ── Style Bars Card ── */
+.ils-bars-card {
+    background: white;
+    border: 1px solid #e8ecf1;
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+.ils-bars-card h4 {
+    margin: 0 0 20px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #334155;
+}
+
+/* ── Style Bar Item ── */
+.ils-bar-item {
+    margin-bottom: 16px;
+}
+
+.ils-bar-item:last-child {
+    margin-bottom: 0;
+}
+
+.ils-bar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.ils-bar-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #334155;
+}
+
+.ils-bar-name .icon {
+    font-size: 1.1rem;
+}
+
+.ils-bar-count {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #94a3b8;
+}
+
+.ils-bar-track {
+    width: 100%;
+    height: 10px;
+    background: #f1f5f9;
+    border-radius: 100px;
+    overflow: hidden;
+}
+
+.ils-bar-fill {
+    height: 100%;
+    border-radius: 100px;
+    transition: width 1s cubic-bezier(.4, 0, .2, 1);
+}
+
+.ils-bar-item.strongest .ils-bar-name {
+    color: #6366f1;
+}
+
+.ils-bar-item.strongest .ils-bar-count {
+    color: #6366f1;
+    font-weight: 700;
+}
+
+/* ── Dimension Pairs ── */
+.ils-dimensions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 32px;
+}
+
+@media (max-width: 600px) {
+    .ils-dimensions {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ils-dim-card {
+    background: white;
+    border: 1px solid #e8ecf1;
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.ils-dim-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #94a3b8;
+    margin-bottom: 12px;
+}
+
+.ils-dim-versus {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.ils-dim-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+    flex: 1;
+    text-align: center;
+}
+
+.ils-dim-label.lead {
+    color: #6366f1;
+    font-weight: 700;
+}
+
+.ils-dim-vs {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #cbd5e1;
+    flex-shrink: 0;
+}
+
+.ils-dim-scale {
+    display: flex;
+    height: 8px;
+    border-radius: 100px;
+    overflow: hidden;
+    background: #f1f5f9;
+}
+
+.ils-dim-scale-left,
+.ils-dim-scale-right {
+    height: 100%;
+    transition: width 1s cubic-bezier(.4, 0, .2, 1);
+}
+
+/* ── Back Button ── */
+.ils-results-back {
+    text-align: center;
+    margin-top: 8px;
+}
+
+.ils-results-back a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 28px;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.92rem;
+    transition: all 0.2s;
+}
+
+.ils-results-back a:hover {
+    background: #e2e8f0;
+    color: #1e293b;
+}
