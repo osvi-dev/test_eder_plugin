@@ -20,80 +20,64 @@ $PAGE->set_heading(format_string($course->fullname));
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $now = time();
 
-    // Borrar respuestas anteriores solo del usuario actual
+    // Borrar respuestas anteriores del usuario actual
     $DB->delete_records('learningstylesurvey_responses', [
-        'userid' => $USER->id, 
+        'userid' => $USER->id,
         'surveyid' => $cm->instance
     ]);
 
-    // Guardar cada respuesta individual
-    for ($i = 1; $i <= 44; $i++) {
-        $key = 'ilsq' . $i;
-        if (isset($_POST[$key])) {
-            $response = intval($_POST[$key]);
-
-            $record = new stdClass();
-            $record->courseid = $courseid;
-            $record->userid = $USER->id;
-            $record->questionid = $i;
-            $record->response = $response;
-            $record->surveyid = $cm->instance;
-            $record->timecreated = $now;
-
-            $DB->insert_record('learningstylesurvey_responses', $record);
-        }
-    }
-
-    // Calcular conteo de respuestas por estilo
+    // Contar puntajes por estilo a partir de los answer IDs enviados
     $stylecounts = [
-        'Activo' => 0, 'Reflexivo' => 0,
-        'Sensorial' => 0, 'Intuitivo' => 0,
-        'Visual' => 0, 'Verbal' => 0,
-        'Secuencial' => 0, 'Global' => 0
-    ];
-
-    $stylemap = [
-        1 => ['Activo','Reflexivo'], 2 => ['Sensorial','Intuitivo'], 3 => ['Visual','Verbal'], 4 => ['Secuencial','Global'],
-        5 => ['Activo','Reflexivo'], 6 => ['Sensorial','Intuitivo'], 7 => ['Visual','Verbal'], 8 => ['Secuencial','Global'],
-        9 => ['Activo','Reflexivo'],10 => ['Sensorial','Intuitivo'],11 => ['Visual','Verbal'],12 => ['Secuencial','Global'],
-        13=> ['Activo','Reflexivo'],14 => ['Sensorial','Intuitivo'],15 => ['Visual','Verbal'],16 => ['Secuencial','Global'],
-        17=> ['Activo','Reflexivo'],18 => ['Sensorial','Intuitivo'],19 => ['Visual','Verbal'],20 => ['Secuencial','Global'],
-        21=> ['Activo','Reflexivo'],22=> ['Sensorial','Intuitivo'],23=> ['Visual','Verbal'],24=> ['Secuencial','Global'],
-        25=> ['Activo','Reflexivo'],26=> ['Sensorial','Intuitivo'],27=> ['Visual','Verbal'],28=> ['Secuencial','Global'],
-        29=> ['Activo','Reflexivo'],30=> ['Sensorial','Intuitivo'],31=> ['Visual','Verbal'],32=> ['Secuencial','Global'],
-        33=> ['Activo','Reflexivo'],34=> ['Sensorial','Intuitivo'],35=> ['Visual','Verbal'],36=> ['Secuencial','Global'],
-        37=> ['Activo','Reflexivo'],38=> ['Sensorial','Intuitivo'],39=> ['Visual','Verbal'],40=> ['Secuencial','Global'],
-        41=> ['Activo','Reflexivo'],42=> ['Sensorial','Intuitivo'],43=> ['Visual','Verbal'],44=> ['Secuencial','Global']
+        'activo' => 0, 'reflexivo' => 0,
+        'sensorial' => 0, 'intuitivo' => 0,
+        'visual' => 0, 'verbal' => 0,
+        'secuencial' => 0, 'global' => 0
     ];
 
     foreach ($_POST as $key => $value) {
-        if (strpos($key, 'ilsq') === 0) {
-            $qid = intval(substr($key, 4));
-            $answer = intval($value);
-            if (isset($stylemap[$qid])) {
-                $stylecounts[$stylemap[$qid][$answer]]++;
+        if (strpos($key, 'ilsq_') === 0) {
+            $answerid = intval($value);
+            // Buscar el estilo de la respuesta seleccionada
+            $answer = $DB->get_record('learningstylesurvey_ilsanswers', ['id' => $answerid]);
+            if ($answer && isset($stylecounts[$answer->style])) {
+                $stylecounts[$answer->style]++;
             }
         }
     }
 
+    // Ordenar por puntaje descendente y guardar top 3
     arsort($stylecounts);
+    $ranking = 0;
+    foreach ($stylecounts as $style => $score) {
+        $ranking++;
+        if ($ranking > 3) {
+            break;
+        }
+        $record = new stdClass();
+        $record->surveyid = $cm->instance;
+        $record->userid = $USER->id;
+        $record->style = $style;
+        $record->score = $score;
+        $record->ranking = $ranking;
+        $record->timecreated = $now;
+        $DB->insert_record('learningstylesurvey_responses', $record);
+    }
+
+    // Actualizar tablas de resultados y userstyles (mantener compatibilidad)
     $strongest = array_key_first($stylecounts);
 
-    // Borrar resultados anteriores solo del usuario actual
     $DB->delete_records('learningstylesurvey_results', ['userid' => $USER->id]);
     $DB->delete_records('learningstylesurvey_userstyles', ['userid' => $USER->id]);
 
-    // Insertar nuevo resultado
     $result = new stdClass();
     $result->userid = $USER->id;
-    $result->strongeststyle = strtolower($strongest);
+    $result->strongeststyle = $strongest;
     $result->timecreated = $now;
     $DB->insert_record('learningstylesurvey_results', $result);
 
-    // Guardar estilo del usuario para filtrado futuro
     $userstyle = new stdClass();
     $userstyle->userid = $USER->id;
-    $userstyle->style = strtolower($strongest);
+    $userstyle->style = $strongest;
     $userstyle->timemodified = $now;
     $DB->insert_record('learningstylesurvey_userstyles', $userstyle);
 
@@ -101,37 +85,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-// Definir las 4 dimensiones y sus preguntas
-$dimensions = [
-    [
-        'title' => 'Activo / Reflexivo',
-        'subtitle' => '¿Cómo prefieres procesar la información?',
-        'icon' => '⚡',
-        'color' => '#6366f1',
-        'questions' => [1, 5, 9, 13, 17, 21, 25, 29, 33, 37, 41]
-    ],
-    [
-        'title' => 'Sensorial / Intuitivo',
-        'subtitle' => '¿Qué tipo de información prefieres percibir?',
-        'icon' => '🧠',
-        'color' => '#8b5cf6',
-        'questions' => [2, 6, 10, 14, 18, 22, 26, 30, 34, 38, 42]
-    ],
-    [
-        'title' => 'Visual / Verbal',
-        'subtitle' => '¿A través de qué canal sensorial percibes mejor?',
-        'icon' => '👁️',
-        'color' => '#06b6d4',
-        'questions' => [3, 7, 11, 15, 19, 23, 27, 31, 35, 39, 43]
-    ],
-    [
-        'title' => 'Secuencial / Global',
-        'subtitle' => '¿Cómo organizas la información?',
-        'icon' => '🔗',
-        'color' => '#10b981',
-        'questions' => [4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44]
-    ]
-];
+// Cargar preguntas y respuestas desde la base de datos
+$dbquestions = $DB->get_records('learningstylesurvey_ilsquestions', null, 'questionnumber ASC');
+$questionids = array_keys($dbquestions);
+
+// Mezclar aleatoriamente (semilla consistente por usuario/survey)
+$seed = crc32($USER->id . '_' . $cm->instance . '_learningstylesurvey');
+mt_srand($seed);
+$shuffled = $questionids;
+for ($i = count($shuffled) - 1; $i > 0; $i--) {
+    $j = mt_rand(0, $i);
+    [$shuffled[$i], $shuffled[$j]] = [$shuffled[$j], $shuffled[$i]];
+}
+
+// Pre-cargar todas las respuestas indexadas por questionid
+$allanswers = $DB->get_records('learningstylesurvey_ilsanswers');
+$answersByQuestion = [];
+foreach ($allanswers as $ans) {
+    $answersByQuestion[$ans->questionid][] = $ans;
+}
+
+// Dividir en 4 páginas de 11 preguntas
+$pages = array_chunk($shuffled, 11);
+$totalPages = count($pages);
 
 echo $OUTPUT->header();
 ?>
@@ -146,14 +122,14 @@ echo $OUTPUT->header();
     <!-- Progress Bar -->
     <div class="ils-progress-wrapper">
         <div class="ils-progress-bar">
-            <div class="ils-progress-fill" id="ilsProgressFill" style="width: 25%"></div>
+            <div class="ils-progress-fill" id="ilsProgressFill" style="width: <?php echo round(100 / $totalPages); ?>%"></div>
         </div>
-        <span class="ils-progress-label" id="ilsProgressLabel">Sección 1 / 4</span>
+        <span class="ils-progress-label" id="ilsProgressLabel">Página 1 / <?php echo $totalPages; ?></span>
     </div>
 
     <!-- Stepper Dots -->
     <div class="ils-stepper">
-        <?php for ($s = 0; $s < 4; $s++): ?>
+        <?php for ($s = 0; $s < $totalPages; $s++): ?>
             <div class="ils-step-dot <?php echo $s === 0 ? 'active' : ''; ?>" data-step="<?php echo $s; ?>"></div>
         <?php endfor; ?>
     </div>
@@ -161,46 +137,32 @@ echo $OUTPUT->header();
     <form method="post" id="ilsSurveyForm">
         <input type="hidden" name="courseid" value="<?php echo $courseid; ?>">
 
-        <?php foreach ($dimensions as $dIndex => $dim): ?>
-            <div class="ils-section <?php echo $dIndex === 0 ? 'active' : ''; ?>" data-section="<?php echo $dIndex; ?>">
-                <!-- Section Header -->
-                <div class="ils-section-header">
-                    <div class="ils-section-icon" style="border: 2px solid <?php echo $dim['color']; ?>20;">
-                        <?php echo $dim['icon']; ?>
-                    </div>
-                    <div class="ils-section-info">
-                        <h3><?php echo $dim['title']; ?></h3>
-                        <p><?php echo $dim['subtitle']; ?></p>
-                    </div>
-                    <span class="ils-section-counter"><?php echo count($dim['questions']); ?> preguntas</span>
-                </div>
-
+        <?php
+        $globalIdx = 0;
+        foreach ($pages as $pageIndex => $pageQuestionIds): ?>
+            <div class="ils-section <?php echo $pageIndex === 0 ? 'active' : ''; ?>" data-section="<?php echo $pageIndex; ?>">
                 <!-- Questions -->
-                <?php foreach ($dim['questions'] as $qIdx => $qNum):
-                    $qkey = "ilsq{$qNum}";
-                    $a0key = "ilsq{$qNum}a0";
-                    $a1key = "ilsq{$qNum}a1";
+                <?php foreach ($pageQuestionIds as $qId):
+                    $globalIdx++;
+                    $q = $dbquestions[$qId];
+                    $answers = isset($answersByQuestion[$qId]) ? $answersByQuestion[$qId] : [];
+                    $radioName = "ilsq_{$qId}";
                 ?>
-                    <div class="ils-question-card" data-question="<?php echo $qNum; ?>">
+                    <div class="ils-question-card" data-question="<?php echo $qId; ?>">
                         <div class="ils-question-label">
-                            <span class="ils-question-number"><?php echo ($qIdx + 1); ?></span>
-                            <?php echo get_string($qkey, 'learningstylesurvey'); ?>
+                            <span class="ils-question-number"><?php echo $globalIdx; ?></span>
+                            <?php echo s($q->questiontext); ?>
                         </div>
                         <div class="ils-options">
-                            <div class="ils-option">
-                                <input type="radio" name="<?php echo $qkey; ?>" id="<?php echo $qkey; ?>_a" value="0" required>
-                                <label for="<?php echo $qkey; ?>_a" class="ils-option-label">
-                                    <span class="ils-radio-dot"></span>
-                                    <?php echo get_string($a0key, 'learningstylesurvey'); ?>
-                                </label>
-                            </div>
-                            <div class="ils-option">
-                                <input type="radio" name="<?php echo $qkey; ?>" id="<?php echo $qkey; ?>_b" value="1">
-                                <label for="<?php echo $qkey; ?>_b" class="ils-option-label">
-                                    <span class="ils-radio-dot"></span>
-                                    <?php echo get_string($a1key, 'learningstylesurvey'); ?>
-                                </label>
-                            </div>
+                            <?php foreach ($answers as $idx => $ans): ?>
+                                <div class="ils-option">
+                                    <input type="radio" name="<?php echo $radioName; ?>" id="ans_<?php echo $ans->id; ?>" value="<?php echo $ans->id; ?>" <?php echo $idx === 0 ? 'required' : ''; ?>>
+                                    <label for="ans_<?php echo $ans->id; ?>" class="ils-option-label">
+                                        <span class="ils-radio-dot"></span>
+                                        <?php echo s($ans->answertext); ?>
+                                    </label>
+                                </div>
+                            <?php endforeach; ?>
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -209,7 +171,7 @@ echo $OUTPUT->header();
 
         <!-- Validation Warning -->
         <div class="ils-warning" id="ilsWarning">
-            ⚠️ <span>Por favor, responde todas las preguntas de esta sección antes de continuar.</span>
+            ⚠️ <span>Por favor, responde todas las preguntas de esta página antes de continuar.</span>
         </div>
 
         <!-- Navigation -->
@@ -221,7 +183,7 @@ echo $OUTPUT->header();
                 Siguiente →
             </button>
             <button type="submit" class="ils-btn ils-btn-submit" id="ilsBtnSubmit" style="display:none;">
-                ✅ Enviar respuestas
+                Enviar respuestas
             </button>
         </div>
     </form>
@@ -263,7 +225,7 @@ echo $OUTPUT->header();
         btnSubmit.style.display = (index === total - 1) ? '' : 'none';
         const pct = Math.round(((index + 1) / total) * 100);
         progressFill.style.width = pct + '%';
-        progressLabel.textContent = 'Sección ' + (index + 1) + ' / ' + total;
+        progressLabel.textContent = 'Página ' + (index + 1) + ' / ' + total;
         warning.classList.remove('show');
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -307,7 +269,6 @@ echo $OUTPUT->header();
     dots.forEach(dot => {
         dot.addEventListener('click', function() {
             const target = parseInt(this.dataset.step);
-            // Allow navigating back freely, but forward only if current section is complete
             if (target < current) {
                 current = target;
                 showSection(current);

@@ -101,6 +101,69 @@ function xmldb_learningstylesurvey_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2025090401, 'learningstylesurvey');
     }
 
+    // Versión 2025091020 - Tablas ILS + rediseño de responses
+    if ($oldversion < 2025091020) {
+
+        // 1. Crear tabla learningstylesurvey_ilsquestions
+        $table = new xmldb_table('learningstylesurvey_ilsquestions');
+        if (!$dbman->table_exists($table)) {
+            $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+            $table->add_field('questionnumber', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+            $table->add_field('questiontext', XMLDB_TYPE_TEXT, null, null, XMLDB_NOTNULL, null, null);
+            $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+            $dbman->create_table($table);
+        }
+
+        // 2. Crear tabla learningstylesurvey_ilsanswers (sin optionindex)
+        $table2 = new xmldb_table('learningstylesurvey_ilsanswers');
+        if (!$dbman->table_exists($table2)) {
+            $table2->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+            $table2->add_field('questionid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+            $table2->add_field('answertext', XMLDB_TYPE_TEXT, null, null, XMLDB_NOTNULL, null, null);
+            $table2->add_field('style', XMLDB_TYPE_CHAR, '50', null, XMLDB_NOTNULL, null, null);
+            $table2->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+            $table2->add_key('questionid_fk', XMLDB_KEY_FOREIGN, ['questionid'], 'learningstylesurvey_ilsquestions', ['id']);
+            $dbman->create_table($table2);
+        }
+
+        // 3. Migrar tabla learningstylesurvey_responses para guardar top 3 estilos
+        $responses = new xmldb_table('learningstylesurvey_responses');
+        if ($dbman->table_exists($responses)) {
+            // Eliminar datos antiguos (ya no son compatibles con el nuevo esquema)
+            $DB->delete_records('learningstylesurvey_responses');
+
+            // Eliminar campos viejos si existen
+            $questionidfield = new xmldb_field('questionid');
+            if ($dbman->field_exists($responses, $questionidfield)) {
+                $dbman->drop_field($responses, $questionidfield);
+            }
+            $responsefield = new xmldb_field('response');
+            if ($dbman->field_exists($responses, $responsefield)) {
+                $dbman->drop_field($responses, $responsefield);
+            }
+
+            // Agregar campos nuevos
+            $stylefield = new xmldb_field('style', XMLDB_TYPE_CHAR, '50', null, XMLDB_NOTNULL, null, null);
+            if (!$dbman->field_exists($responses, $stylefield)) {
+                $dbman->add_field($responses, $stylefield);
+            }
+            $scorefield = new xmldb_field('score', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            if (!$dbman->field_exists($responses, $scorefield)) {
+                $dbman->add_field($responses, $scorefield);
+            }
+            $rankingfield = new xmldb_field('ranking', XMLDB_TYPE_INTEGER, '2', null, XMLDB_NOTNULL, null, '1');
+            if (!$dbman->field_exists($responses, $rankingfield)) {
+                $dbman->add_field($responses, $rankingfield);
+            }
+        }
+
+        // 4. Ejecutar seeder para insertar las preguntas y respuestas del ILS
+        require_once(__DIR__ . '/install.php');
+        xmldb_learningstylesurvey_install();
+
+        upgrade_mod_savepoint(true, 2025091020, 'learningstylesurvey');
+    }
+
 
     return true;
 }

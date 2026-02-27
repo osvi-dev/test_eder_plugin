@@ -68,13 +68,14 @@
             </KEYS>
         </TABLE>
 
-        <TABLE NAME="learningstylesurvey_responses" COMMENT="Stores individual question responses">
+        <TABLE NAME="learningstylesurvey_responses" COMMENT="Top 3 estilos de aprendizaje por usuario por encuesta">
             <FIELDS>
                 <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true" />
                 <FIELD NAME="surveyid" TYPE="int" LENGTH="10" NOTNULL="true" />
                 <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" />
-                <FIELD NAME="questionid" TYPE="int" LENGTH="10" NOTNULL="true" />
-                <FIELD NAME="response" TYPE="text" NOTNULL="true" />
+                <FIELD NAME="style" TYPE="char" LENGTH="50" NOTNULL="true" COMMENT="Nombre del estilo: activo, reflexivo, etc." />
+                <FIELD NAME="score" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" COMMENT="Puntaje obtenido en este estilo" />
+                <FIELD NAME="ranking" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="1" COMMENT="Posición: 1, 2 o 3" />
                 <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" />
             </FIELDS>
             <KEYS>
@@ -246,6 +247,31 @@
                 <KEY NAME="primary" TYPE="primary" FIELDS="id" />
                 <KEY NAME="path_fk" TYPE="foreign" FIELDS="pathid" REFTABLE="learningstylesurvey_paths" REFFIELDS="id" />
                 <KEY NAME="tema_fk" TYPE="foreign" FIELDS="temaid" REFTABLE="learningstylesurvey_temas" REFFIELDS="id" />
+            </KEYS>
+        </TABLE>
+
+        <TABLE NAME="learningstylesurvey_ilsquestions" COMMENT="Preguntas del ILS de Felder-Silverman">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true" />
+                <FIELD NAME="questionnumber" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="Número de pregunta (1-44)" />
+                <FIELD NAME="questiontext" TYPE="text" NOTNULL="true" COMMENT="Texto de la pregunta" />
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id" />
+            </KEYS>
+        </TABLE>
+
+        <TABLE NAME="learningstylesurvey_ilsanswers" COMMENT="Respuestas del ILS con estilo de aprendizaje asociado">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true" />
+                <FIELD NAME="questionid" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="FK a ilsquestions.id" />
+                <FIELD NAME="answertext" TYPE="text" NOTNULL="true" COMMENT="Texto de la respuesta" />
+
+                <FIELD NAME="style" TYPE="char" LENGTH="50" NOTNULL="true" COMMENT="Estilo: activo, reflexivo, sensorial, intuitivo, visual, verbal, secuencial, global" />
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id" />
+                <KEY NAME="questionid_fk" TYPE="foreign" FIELDS="questionid" REFTABLE="learningstylesurvey_ilsquestions" REFFIELDS="id" />
             </KEYS>
         </TABLE>
     </TABLES>

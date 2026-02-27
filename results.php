@@ -161,7 +161,7 @@ foreach ($respondents as $user) {
     <div class="ils-content-grid">
         <!-- Radar Chart -->
         <div class="ils-chart-card">
-            <h4>📈 Perfil de Aprendizaje</h4>
+            <h4>Perfil de Aprendizaje</h4>
             <div class="ils-chart-wrapper">
                 <canvas id="resultChart"></canvas>
             </div>
@@ -169,7 +169,7 @@ foreach ($respondents as $user) {
 
         <!-- Style Bars -->
         <div class="ils-bars-card">
-            <h4>📊 Desglose por Estilo</h4>
+            <h4>Desglose por Estilo</h4>
             <?php foreach ($stylecounts as $estilo => $cantidad):
                 $pct = $maxcount > 0 ? round(($cantidad / $maxcount) * 100) : 0;
                 $meta = $stylesMeta[$estilo];
