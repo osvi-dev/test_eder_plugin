@@ -45,20 +45,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // Ordenar por puntaje descendente y guardar top 3
+    // Ordenar por puntaje descendente y guardar todos los estilos
+    // Top 3 con ranking 1, 2, 3; los demás con ranking 0
     arsort($stylecounts);
     $ranking = 0;
     foreach ($stylecounts as $style => $score) {
         $ranking++;
-        if ($ranking > 3) {
-            break;
-        }
         $record = new stdClass();
         $record->surveyid = $cm->instance;
         $record->userid = $USER->id;
         $record->style = $style;
         $record->score = $score;
-        $record->ranking = $ranking;
+        $record->ranking = ($ranking <= 3) ? $ranking : 0;
         $record->timecreated = $now;
         $DB->insert_record('learningstylesurvey_responses', $record);
     }
@@ -89,14 +87,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $dbquestions = $DB->get_records('learningstylesurvey_ilsquestions', null, 'questionnumber ASC');
 $questionids = array_keys($dbquestions);
 
-// Mezclar aleatoriamente (semilla consistente por usuario/survey)
-$seed = crc32($USER->id . '_' . $cm->instance . '_learningstylesurvey');
-mt_srand($seed);
+// Mezclar aleatoriamente (orden distinto cada vez que se entra)
 $shuffled = $questionids;
-for ($i = count($shuffled) - 1; $i > 0; $i--) {
-    $j = mt_rand(0, $i);
-    [$shuffled[$i], $shuffled[$j]] = [$shuffled[$j], $shuffled[$i]];
-}
+shuffle($shuffled);
 
 // Pre-cargar todas las respuestas indexadas por questionid
 $allanswers = $DB->get_records('learningstylesurvey_ilsanswers');
@@ -154,7 +147,7 @@ echo $OUTPUT->header();
                             <?php echo s($q->questiontext); ?>
                         </div>
                         <div class="ils-options">
-                            <?php foreach ($answers as $idx => $ans): ?>
+                            <?php shuffle($answers); foreach ($answers as $idx => $ans): ?>
                                 <div class="ils-option">
                                     <input type="radio" name="<?php echo $radioName; ?>" id="ans_<?php echo $ans->id; ?>" value="<?php echo $ans->id; ?>" <?php echo $idx === 0 ? 'required' : ''; ?>>
                                     <label for="ans_<?php echo $ans->id; ?>" class="ils-option-label">

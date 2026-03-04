@@ -38,46 +38,7 @@ if ($selecteduserid != 0 && !array_key_exists($selecteduserid, $respondents)) {
     $selecteduserid = $USER->id;
 }
 
-// Mapeo de preguntas a estilos
-$stylemap = [
-    1 => ['Activo','Reflexivo'], 2 => ['Sensorial','Intuitivo'], 3 => ['Visual','Verbal'], 4 => ['Secuencial','Global'],
-    5 => ['Activo','Reflexivo'], 6 => ['Sensorial','Intuitivo'], 7 => ['Visual','Verbal'], 8 => ['Secuencial','Global'],
-    9 => ['Activo','Reflexivo'],10 => ['Sensorial','Intuitivo'],11 => ['Visual','Verbal'],12 => ['Secuencial','Global'],
-    13=> ['Activo','Reflexivo'],14 => ['Sensorial','Intuitivo'],15 => ['Visual','Verbal'],16 => ['Secuencial','Global'],
-    17=> ['Activo','Reflexivo'],18 => ['Sensorial','Intuitivo'],19 => ['Visual','Verbal'],20 => ['Secuencial','Global'],
-    21=> ['Activo','Reflexivo'],22 => ['Sensorial','Intuitivo'],23 => ['Visual','Verbal'],24 => ['Secuencial','Global'],
-    25=> ['Activo','Reflexivo'],26 => ['Sensorial','Intuitivo'],27 => ['Visual','Verbal'],28 => ['Secuencial','Global'],
-    29=> ['Activo','Reflexivo'],30 => ['Sensorial','Intuitivo'],31 => ['Visual','Verbal'],32 => ['Secuencial','Global'],
-    33=> ['Activo','Reflexivo'],34 => ['Sensorial','Intuitivo'],35 => ['Visual','Verbal'],36 => ['Secuencial','Global'],
-    37=> ['Activo','Reflexivo'],38 => ['Sensorial','Intuitivo'],39 => ['Visual','Verbal'],40 => ['Secuencial','Global'],
-    41=> ['Activo','Reflexivo'],42 => ['Sensorial','Intuitivo'],43 => ['Visual','Verbal'],44 => ['Secuencial','Global']
-];
-
-if ($selecteduserid == 0) {
-    $responses = [];
-    foreach ($respondents as $user) {
-        $userresponses = $DB->get_records('learningstylesurvey_responses', ['userid' => $user->id, 'surveyid' => $survey->id], 'timecreated DESC', '*', 0, 44);
-        $responses = array_merge($responses, $userresponses);
-    }
-    if (!$responses) {
-        echo $OUTPUT->notification("No hay respuestas registradas para esta encuesta.", 'notifymessage');
-        echo $OUTPUT->footer();
-        exit;
-    }
-    $title = "Resultados generales";
-    $titleIcon = "🌐";
-} else {
-    $responses = $DB->get_records('learningstylesurvey_responses', ['userid' => $selecteduserid, 'surveyid' => $survey->id], 'timecreated DESC', '*', 0, 44);
-    if (!$responses) {
-        echo $OUTPUT->notification("El usuario seleccionado no ha respondido la encuesta.", 'notifymessage');
-        echo $OUTPUT->footer();
-        exit;
-    }
-    $title = "Resultados de " . fullname($respondents[$selecteduserid]);
-    $titleIcon = "👤";
-}
-
-// Contar respuestas por estilo
+// Inicializar conteo de estilos (capitalizado para display)
 $stylecounts = [
     'Activo' => 0, 'Reflexivo' => 0,
     'Sensorial' => 0, 'Intuitivo' => 0,
@@ -85,13 +46,48 @@ $stylecounts = [
     'Secuencial' => 0, 'Global' => 0
 ];
 
-foreach ($responses as $r) {
-    $qid = $r->questionid;
-    $answer = intval($r->response);
-    if (isset($stylemap[$qid])) {
-        $style = $stylemap[$qid][$answer];
-        $stylecounts[$style]++;
+// Mapeo de minúsculas (BD) a capitalizado (display)
+$styleDisplay = [
+    'activo' => 'Activo', 'reflexivo' => 'Reflexivo',
+    'sensorial' => 'Sensorial', 'intuitivo' => 'Intuitivo',
+    'visual' => 'Visual', 'verbal' => 'Verbal',
+    'secuencial' => 'Secuencial', 'global' => 'Global'
+];
+
+if ($selecteduserid == 0) {
+    // Vista general: agregar puntajes de todos los usuarios
+    $allresponses = $DB->get_records('learningstylesurvey_responses', ['surveyid' => $survey->id]);
+    if (!$allresponses) {
+        echo $OUTPUT->notification("No hay respuestas registradas para esta encuesta.", 'notifymessage');
+        echo $OUTPUT->footer();
+        exit;
     }
+    foreach ($allresponses as $r) {
+        $displayKey = isset($styleDisplay[$r->style]) ? $styleDisplay[$r->style] : ucfirst($r->style);
+        if (isset($stylecounts[$displayKey])) {
+            $stylecounts[$displayKey] += $r->score;
+        }
+    }
+    $title = "Resultados generales";
+    $titleIcon = "🌐";
+} else {
+    $responses = $DB->get_records('learningstylesurvey_responses', [
+        'userid' => $selecteduserid,
+        'surveyid' => $survey->id
+    ], 'ranking ASC');
+    if (!$responses) {
+        echo $OUTPUT->notification("El usuario seleccionado no ha respondido la encuesta.", 'notifymessage');
+        echo $OUTPUT->footer();
+        exit;
+    }
+    foreach ($responses as $r) {
+        $displayKey = isset($styleDisplay[$r->style]) ? $styleDisplay[$r->style] : ucfirst($r->style);
+        if (isset($stylecounts[$displayKey])) {
+            $stylecounts[$displayKey] = $r->score;
+        }
+    }
+    $title = "Resultados de " . fullname($respondents[$selecteduserid]);
+    $titleIcon = "👤";
 }
 
 arsort($stylecounts);
