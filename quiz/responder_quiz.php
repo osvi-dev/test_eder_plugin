@@ -111,24 +111,60 @@ function process_quiz_submission($quizid, $courseid, $userid, $embedded = false)
     return $score;
 }
 
-// Verificar si ya respondió
-$result = $DB->get_record('learningstylesurvey_quiz_results', [
-    'userid' => $userid,
-    'quizid' => $quizid,
-    'courseid' => $courseid
-]);
+// Verificar si ya respondió (obtener el resultado MÁS RECIENTE)
+$result = $DB->get_record_sql("
+    SELECT * FROM {learningstylesurvey_quiz_results}
+    WHERE userid = ? AND quizid = ? AND courseid = ?
+    ORDER BY timecompleted DESC LIMIT 1
+", [$userid, $quizid, $courseid]);
 
 if ($result) {$retry = true;}
 
-// Si es un reintento y existe un resultado previo, eliminarlo
+// ============================================================
+// LÓGICA DE BLOQUEO POR 3 INTENTOS REPROBADOS CONSECUTIVOS
+// ============================================================
+// Contar intentos reprobados consecutivos (desde el más reciente)
+function count_consecutive_failures($DB, $userid, $quizid, $courseid) {
+    $all_results = $DB->get_records_sql("
+        SELECT id, score, timecompleted FROM {learningstylesurvey_quiz_results}
+        WHERE userid = ? AND quizid = ? AND courseid = ?
+        ORDER BY timecompleted DESC
+    ", [$userid, $quizid, $courseid]);
+    
+    $consecutive_failures = 0;
+    foreach ($all_results as $r) {
+        if ($r->score < 70) {
+            $consecutive_failures++;
+        } else {
+            break; // Si encontramos un aprobado, dejamos de contar
+        }
+    }
+    return $consecutive_failures;
+}
+
+$consecutive_failures = count_consecutive_failures($DB, $userid, $quizid, $courseid);
+$is_blocked = ($consecutive_failures >= 3);
+
+// Si está bloqueado, mostrar mensaje y detener
+if ($is_blocked && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo "<div class='alert alert-danger' style='text-align:center; margin-top:30px; padding:30px;'>";
+    echo "<h3>⛔ Has agotado tus 3 intentos</h3>";
+    echo "<p style='font-size:16px; margin-top:15px;'>Has reprobado este examen 3 veces consecutivas.</p>";
+    echo "<p style='font-size:18px; font-weight:bold; margin-top:10px;'>📩 Contacta al profesor para poder continuar.</p>";
+    if ($cmid) {
+        $menuurl = new moodle_url('/mod/learningstylesurvey/view.php', ['id'=>$cmid]);
+        echo "<a href='{$menuurl}' class='btn btn-primary' style='margin-top:20px; padding:10px 25px; font-size:16px;'>Regresar al menú principal</a>";
+    }
+    echo "</div>";
+    echo "</div>";
+    echo $OUTPUT->footer();
+    exit;
+}
+
+// Si es un reintento, limpiar la variable result para permitir mostrar el formulario
 if ($retry && $result) {
-    $deleted = $DB->delete_records('learningstylesurvey_quiz_results', [
-        'userid' => $userid,
-        'quizid' => $quizid,
-        'courseid' => $courseid
-    ]);
-    echo "<div class='alert alert-success'>✅ Resultado anterior eliminado. Puedes realizar el examen nuevamente.</div>";
-    $result = null; // Limpiar la variable para permitir mostrar el formulario
+    echo "<div class='alert alert-info'>🔄 Intento " . ($consecutive_failures + 1) . " de 3. ¡Tú puedes!</div>";
+    $result = null; // Limpiar para permitir mostrar el formulario
 }
 
 // Lógica mejorada: verificar si hay saltos configurados antes de permitir reintentos automáticos
@@ -334,99 +370,114 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         echo "<p style='color:red; font-weight:bold;'>Reprobado</p>";
         
-        // VERIFICAR si hay salto configurado y si es tema de refuerzo o no
-        $step = $DB->get_record_sql("
-            SELECT s.* FROM {learningpath_steps} s 
-            WHERE s.resourceid = ? AND s.istest = 1
-            ORDER BY s.id DESC LIMIT 1
-        ", [$quizid]);
+        // Recontar intentos reprobados consecutivos después de este intento
+        $consecutive_failures = count_consecutive_failures($DB, $userid, $quizid, $courseid);
+        $is_blocked_now = ($consecutive_failures >= 3);
         
-        if ($step && $step->failredirect && $step->failredirect > 0) {
-            $target_resource = $DB->get_record('learningstylesurvey_resources', ['id' => $step->failredirect]);
+        if ($is_blocked_now) {
+            // ⛔ BLOQUEADO: 3 intentos reprobados consecutivos
+            echo "<div class='alert alert-danger' style='text-align:center; margin-top:30px; padding:30px;'>";
+            echo "<h3>⛔ Has agotado tus 3 intentos</h3>";
+            echo "<p style='font-size:16px; margin-top:15px;'>Has reprobado este examen 3 veces consecutivas.</p>";
+            echo "<p style='font-size:18px; font-weight:bold; margin-top:10px;'>📩 Contacta al profesor para poder continuar.</p>";
+            if ($cmid) {
+                $menuurl = new moodle_url('/mod/learningstylesurvey/view.php', ['id'=>$cmid]);
+                echo "<a href='{$menuurl}' class='btn btn-primary' style='margin-top:20px; padding:10px 25px; font-size:16px;'>Regresar al menú principal</a>";
+            }
+            echo "</div>";
+        } else {
+            // Aún tiene intentos - mostrar opciones normales
+            $intentos_restantes = 3 - $consecutive_failures;
+            echo "<div class='alert alert-info' style='text-align:center; margin-top:10px;'>";
+            echo "<p>📋 Te quedan <strong>{$intentos_restantes}</strong> intento(s) antes de ser bloqueado.</p>";
+            echo "</div>";
             
-            if ($target_resource) {
-                // Verificar si es tema de refuerzo
-                $is_refuerzo_tema = $DB->get_record('learningstylesurvey_path_temas', [
-                    'pathid' => $step->pathid,
-                    'temaid' => $target_resource->tema,
-                    'isrefuerzo' => 1
-                ]);
+            // VERIFICAR si hay salto configurado y si es tema de refuerzo o no
+            $step = $DB->get_record_sql("
+                SELECT s.* FROM {learningpath_steps} s 
+                WHERE s.resourceid = ? AND s.istest = 1
+                ORDER BY s.id DESC LIMIT 1
+            ", [$quizid]);
+            
+            if ($step && $step->failredirect && $step->failredirect > 0) {
+                $target_resource = $DB->get_record('learningstylesurvey_resources', ['id' => $step->failredirect]);
                 
-                if ($is_refuerzo_tema) {
-                    // ES TEMA DE REFUERZO: Mensaje con tiempo y botón
-                    echo "<div class='alert alert-warning' style='text-align:center; margin-top:20px;'>";
-                    echo "<h4>🔄 Material de refuerzo disponible</h4>";
-                    echo "<p>Tu puntuación indica que necesitas revisar material adicional para reforzar tu comprensión del tema.</p>";
-                    echo "<p><strong>Te recomendamos revisar el contenido de refuerzo antes de intentar nuevamente.</strong></p>";
-                    echo "</div>";
-                    
-
-                    
-                    $refuerzourl = new moodle_url('/mod/learningstylesurvey/path/vista_estudiante.php', [
-                        'courseid' => $courseid,
+                if ($target_resource) {
+                    // Verificar si es tema de refuerzo
+                    $is_refuerzo_tema = $DB->get_record('learningstylesurvey_path_temas', [
                         'pathid' => $step->pathid,
-                        'tema_refuerzo' => $target_resource->tema,
-                        'cmid' => $cmid
+                        'temaid' => $target_resource->tema,
+                        'isrefuerzo' => 1
                     ]);
                     
-                    echo "<div style='text-align:center; margin:20px 0;'>";
-                    echo "<a href='{$refuerzourl}' class='btn btn-warning btn-lg' style='margin:10px; padding:12px 25px; font-size:16px; text-decoration:none; background:#ffc107; color:#000; border-radius:5px; display:inline-block;'>Ir al material de refuerzo</a>";
-                    echo "</div>";
-                    
-                    // Permitir reintento desde la vista de refuerzo
-                    $retryurl = new moodle_url('/mod/learningstylesurvey/quiz/responder_quiz.php', [
-                        'id' => $quizid,
-                        'courseid' => $courseid,
-                        'embedded' => 1,
-                        'retry' => 1,
-                        'from_refuerzo' => 1,
-                        'cmid' => $cmid
-                    ]);
-                    echo "<div style='text-align:center; margin:10px 0;'>";
-                    echo "<a href='{$retryurl}' class='btn btn-primary btn-lg' style='padding:10px 20px; text-decoration:none; background:#007bff; color:#fff; border-radius:5px;'>Reintentar examen</a>";
-                    echo "</div>";
-                    
+                    if ($is_refuerzo_tema) {
+                        // ES TEMA DE REFUERZO: Mensaje con tiempo y botón
+                        echo "<div class='alert alert-warning' style='text-align:center; margin-top:20px;'>";
+                        echo "<h4>🔄 Material de refuerzo disponible</h4>";
+                        echo "<p>Tu puntuación indica que necesitas revisar material adicional para reforzar tu comprensión del tema.</p>";
+                        echo "<p><strong>Te recomendamos revisar el contenido de refuerzo antes de intentar nuevamente.</strong></p>";
+                        echo "</div>";
+                        
+                        $refuerzourl = new moodle_url('/mod/learningstylesurvey/path/vista_estudiante.php', [
+                            'courseid' => $courseid,
+                            'pathid' => $step->pathid,
+                            'tema_refuerzo' => $target_resource->tema,
+                            'cmid' => $cmid
+                        ]);
+                        
+                        echo "<div style='text-align:center; margin:20px 0;'>";
+                        echo "<a href='{$refuerzourl}' class='btn btn-warning btn-lg' style='margin:10px; padding:12px 25px; font-size:16px; text-decoration:none; background:#ffc107; color:#000; border-radius:5px; display:inline-block;'>Ir al material de refuerzo</a>";
+                        echo "</div>";
+                        
+                        // Permitir reintento desde la vista de refuerzo
+                        $retryurl = new moodle_url('/mod/learningstylesurvey/quiz/responder_quiz.php', [
+                            'id' => $quizid,
+                            'courseid' => $courseid,
+                            'embedded' => 1,
+                            'retry' => 1,
+                            'from_refuerzo' => 1,
+                            'cmid' => $cmid
+                        ]);
+                        echo "<div style='text-align:center; margin:10px 0;'>";
+                        echo "<a href='{$retryurl}' class='btn btn-primary btn-lg' style='padding:10px 20px; text-decoration:none; background:#007bff; color:#fff; border-radius:5px;'>Reintentar examen</a>";
+                        echo "</div>";
 
+                    } else {
+                        // NO ES TEMA DE REFUERZO: Tema asignado para revisión
+                        echo "<div class='alert alert-info' style='text-align:center; margin-top:20px;'>";
+                        echo "<h4>🎯 Material adicional asignado</h4>";
+                        echo "<p>Se te ha asignado material adicional para complementar tu aprendizaje antes de continuar.</p>";
+                        echo "<p><strong>Te recomendamos revisar este contenido antes de seguir con la ruta.</strong></p>";
+                        echo "</div>";
+                        
+                        $saltourl = new moodle_url('/mod/learningstylesurvey/path/vista_estudiante.php', [
+                            'courseid' => $courseid,
+                            'pathid' => $step->pathid,
+                            'tema_salto' => $target_resource->tema,
+                            'cmid' => $cmid
+                        ]);
+                        
+                        echo "<div style='text-align:center; margin:20px 0;'>";
+                        echo "<a href='{$saltourl}' class='btn btn-info btn-lg' style='margin:10px; padding:12px 25px; font-size:16px; text-decoration:none; background:#17a2b8; color:white; border-radius:5px; display:inline-block;'>Ir al material asignado</a>";
+                        echo "</div>";
+
+                    }
                 } else {
-                    // NO ES TEMA DE REFUERZO: Tema asignado para revisión
+                    // Si no se encuentra el recurso de salto, permitir reintento
                     echo "<div class='alert alert-info' style='text-align:center; margin-top:20px;'>";
-                    echo "<h4>🎯 Material adicional asignado</h4>";
-                    echo "<p>Se te ha asignado material adicional para complementar tu aprendizaje antes de continuar.</p>";
-                    echo "<p><strong>Te recomendamos revisar este contenido antes de seguir con la ruta.</strong></p>";
-                    echo "</div>";
-                    
-
-                    
-                    $saltourl = new moodle_url('/mod/learningstylesurvey/path/vista_estudiante.php', [
-                        'courseid' => $courseid,
-                        'pathid' => $step->pathid,
-                        'tema_salto' => $target_resource->tema,
-                        'cmid' => $cmid
-                    ]);
-                    
-                    echo "<div style='text-align:center; margin:20px 0;'>";
-                    echo "<a href='{$saltourl}' class='btn btn-info btn-lg' style='margin:10px; padding:12px 25px; font-size:16px; text-decoration:none; background:#17a2b8; color:white; border-radius:5px; display:inline-block;'>Ir al material asignado</a>";
+                    echo "<h4>🔄 Preparando nuevo intento</h4>";
+                    echo "<p>No se encontró material adicional. Puedes intentar el examen nuevamente cuando estés listo.</p>";
                     echo "</div>";
 
                 }
             } else {
-                // Si no se encuentra el recurso de salto, permitir reintento
-                echo "<div class='alert alert-info' style='text-align:center; margin-top:20px;'>";
-                echo "<h4>� Preparando nuevo intento</h4>";
-                echo "<p>No se encontró material adicional. Puedes intentar el examen nuevamente cuando estés listo.</p>";
+                // No hay salto configurado - permitir reintento inmediato
+                echo "<div class='alert alert-warning' style='text-align:center; margin-top:20px;'>";
+                echo "<h4>🔄 Sin material adicional</h4>";
+                echo "<p>No se ha configurado material adicional. El examen ha finalizado - consulta con tu instructor.</p>";
                 echo "</div>";
 
             }
-        } else {
-            // No hay salto configurado - permitir reintento inmediato
-            echo "<div class='alert alert-warning' style='text-align:center; margin-top:20px;'>";
-            echo "<h4>� Sin material adicional</h4>";
-            echo "<p>No se ha configurado material adicional. El examen ha finalizado - consulta con tu instructor.</p>";
-            echo "</div>";
-            
-
-
-
         }
     }
     
@@ -639,9 +690,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     shuffle($questions_array); // Mezclar aleatoriamente
     
     if ($auto_retry) {
+        $intentos_restantes = 3 - $consecutive_failures;
         echo "<div class='alert alert-info'>";
         echo "<h4>🔄 Nuevo intento</h4>";
-        echo "<p>Puedes volver a realizar este examen. No hay límite de intentos.</p>";
+        echo "<p>Puedes volver a realizar este examen. Te quedan <strong>{$intentos_restantes}</strong> intento(s) disponibles.</p>";
         echo "</div>";
     }
     
