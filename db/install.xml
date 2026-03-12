@@ -274,5 +274,27 @@
                 <KEY NAME="questionid_fk" TYPE="foreign" FIELDS="questionid" REFTABLE="learningstylesurvey_ilsquestions" REFFIELDS="id" />
             </KEYS>
         </TABLE>
+
+        <TABLE NAME="learningstylesurvey_style_log" COMMENT="Log de eventos de rotación de estilos y resultados de exámenes para análisis">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true" />
+                <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="ID del estudiante" />
+                <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="ID del curso" />
+                <FIELD NAME="quizid" TYPE="int" LENGTH="10" NOTNULL="false" COMMENT="ID del examen que disparó el evento" />
+                <FIELD NAME="pathid" TYPE="int" LENGTH="10" NOTNULL="false" COMMENT="ID de la ruta de aprendizaje" />
+                <FIELD NAME="event_type" TYPE="char" LENGTH="20" NOTNULL="true" COMMENT="Tipo: rotation, exam_pass, exam_fail" />
+                <FIELD NAME="old_style" TYPE="char" LENGTH="50" NOTNULL="false" COMMENT="Estilo antes del evento" />
+                <FIELD NAME="new_style" TYPE="char" LENGTH="50" NOTNULL="false" COMMENT="Estilo después del evento" />
+                <FIELD NAME="style_rank" TYPE="int" LENGTH="2" NOTNULL="false" COMMENT="Posición del nuevo estilo en el ranking (1, 2, 3)" />
+                <FIELD NAME="exam_score" TYPE="int" LENGTH="10" NOTNULL="false" COMMENT="Puntaje obtenido en el examen" />
+                <FIELD NAME="attempt_number" TYPE="int" LENGTH="5" NOTNULL="false" COMMENT="Número de intento en este examen" />
+                <FIELD NAME="consecutive_failures" TYPE="int" LENGTH="5" NOTNULL="false" COMMENT="Reprobaciones consecutivas al momento del evento" />
+                <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" />
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id" />
+                <KEY NAME="userid_fk" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id" />
+            </KEYS>
+        </TABLE>
     </TABLES>
 </XMLDB>

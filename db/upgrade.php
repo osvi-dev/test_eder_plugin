@@ -165,5 +165,30 @@ function xmldb_learningstylesurvey_upgrade($oldversion) {
     }
 
 
+    // Versión 2025091024 - Tabla de métricas para rotación de estilos
+    if ($oldversion < 2025091024) {
+        $table = new xmldb_table('learningstylesurvey_style_log');
+        if (!$dbman->table_exists($table)) {
+            $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+            $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+            $table->add_field('courseid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+            $table->add_field('quizid', XMLDB_TYPE_INTEGER, '10', null, false, null, null);
+            $table->add_field('pathid', XMLDB_TYPE_INTEGER, '10', null, false, null, null);
+            $table->add_field('event_type', XMLDB_TYPE_CHAR, '20', null, XMLDB_NOTNULL, null, null);
+            $table->add_field('old_style', XMLDB_TYPE_CHAR, '50', null, false, null, null);
+            $table->add_field('new_style', XMLDB_TYPE_CHAR, '50', null, false, null, null);
+            $table->add_field('style_rank', XMLDB_TYPE_INTEGER, '2', null, false, null, null);
+            $table->add_field('exam_score', XMLDB_TYPE_INTEGER, '10', null, false, null, null);
+            $table->add_field('attempt_number', XMLDB_TYPE_INTEGER, '5', null, false, null, null);
+            $table->add_field('consecutive_failures', XMLDB_TYPE_INTEGER, '5', null, false, null, null);
+            $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+            $table->add_key('userid_fk', XMLDB_KEY_FOREIGN, ['userid'], 'user', ['id']);
+            $dbman->create_table($table);
+        }
+
+        upgrade_mod_savepoint(true, 2025091024, 'learningstylesurvey');
+    }
+
     return true;
 }

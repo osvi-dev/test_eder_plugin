@@ -1,5 +1,6 @@
 <?php
 require_once('../../../config.php');
+require_once($CFG->dirroot . '/mod/learningstylesurvey/locallib.php');
 global $DB, $USER, $OUTPUT;
 
 // Detectar si se carga embebido y de dónde viene
@@ -271,6 +272,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo "<div class='alert alert-success'>✅ Aunque este intento fue {$score}%, tu mejor resultado ({$best_score}%) ya aprueba el examen.</div>";
         }
         
+        // LOG: Evento exam_pass
+        $current_user_style = $DB->get_field_sql("
+            SELECT style FROM {learningstylesurvey_userstyles}
+            WHERE userid = ? ORDER BY timecreated DESC LIMIT 1
+        ", [$userid]);
+        $total_attempts = $DB->count_records('learningstylesurvey_quiz_results', [
+            'userid' => $userid, 'quizid' => $quizid, 'courseid' => $courseid
+        ]);
+        log_style_event('exam_pass', [
+            'userid' => $userid,
+            'courseid' => $courseid,
+            'quizid' => $quizid,
+            'pathid' => $pathid_for_quiz,
+            'old_style' => $current_user_style,
+            'new_style' => $current_user_style,
+            'exam_score' => $score,
+            'attempt_number' => $total_attempts,
+            'consecutive_failures' => 0
+        ]);
+        
         // REDIRECCIÓN AUTOMÁTICA después de aprobar
         echo "<div class='alert alert-success' style='text-align:center; margin-top:20px;'>";
         echo "<h4>🎉 ¡Examen aprobado!</h4>";
@@ -391,6 +412,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo "<div class='alert alert-info' style='text-align:center; margin-top:10px;'>";
             echo "<p>📋 Te quedan <strong>{$intentos_restantes}</strong> intento(s) antes de ser bloqueado.</p>";
             echo "</div>";
+            
+            // ============================================================
+            // ROTACIÓN CIRCULAR DE ESTILO DE APRENDIZAJE AL REPROBAR
+            // ============================================================
+            $old_style = $DB->get_field_sql("
+                SELECT style FROM {learningstylesurvey_userstyles}
+                WHERE userid = ? ORDER BY timecreated DESC LIMIT 1
+            ", [$userid]);
+            
+            $rotation_result = rotate_user_learning_style($userid);
+            
+            // Contar total de intentos para este examen
+            $total_attempts = $DB->count_records('learningstylesurvey_quiz_results', [
+                'userid' => $userid, 'quizid' => $quizid, 'courseid' => $courseid
+            ]);
+            
+            if ($rotation_result && $rotation_result['style'] !== $old_style) {
+                $new_style = $rotation_result['style'];
+                $new_rank = $rotation_result['rank'];
+                
+                $styleNames = [
+                    'activo' => 'Activo 🏃', 'reflexivo' => 'Reflexivo 🤔',
+                    'sensorial' => 'Sensorial 🔬', 'intuitivo' => 'Intuitivo 💡',
+                    'visual' => 'Visual 👁️', 'verbal' => 'Verbal 💬',
+                    'secuencial' => 'Secuencial 📋', 'global' => 'Global 🌐'
+                ];
+                $old_display = isset($styleNames[$old_style]) ? $styleNames[$old_style] : ucfirst($old_style);
+                $new_display = isset($styleNames[$new_style]) ? $styleNames[$new_style] : ucfirst($new_style);
+                
+                echo "<div class='alert alert-warning' style='text-align:center; margin-top:15px; padding:20px; border-left:4px solid #ffc107;'>";
+                echo "<h4>🔄 Cambio de estilo de aprendizaje</h4>";
+                echo "<p>Tu estilo ha cambiado de <strong>{$old_display}</strong> a <strong>{$new_display}</strong>.</p>";
+                echo "<p><small>Ahora verás material adaptado a tu nuevo estilo de aprendizaje.</small></p>";
+                echo "</div>";
+                
+                // LOG: Evento rotation
+                log_style_event('rotation', [
+                    'userid' => $userid,
+                    'courseid' => $courseid,
+                    'quizid' => $quizid,
+                    'pathid' => $pathid_for_quiz,
+                    'old_style' => $old_style,
+                    'new_style' => $new_style,
+                    'style_rank' => $new_rank,
+                    'exam_score' => $score,
+                    'attempt_number' => $total_attempts,
+                    'consecutive_failures' => $consecutive_failures
+                ]);
+            }
+            
+            // LOG: Evento exam_fail
+            log_style_event('exam_fail', [
+                'userid' => $userid,
+                'courseid' => $courseid,
+                'quizid' => $quizid,
+                'pathid' => $pathid_for_quiz,
+                'old_style' => $old_style,
+                'new_style' => $rotation_result ? $rotation_result['style'] : $old_style,
+                'style_rank' => $rotation_result ? $rotation_result['rank'] : null,
+                'exam_score' => $score,
+                'attempt_number' => $total_attempts,
+                'consecutive_failures' => $consecutive_failures
+            ]);
             
             // VERIFICAR si hay salto configurado y si es tema de refuerzo o no
             $step = $DB->get_record_sql("
