@@ -251,13 +251,13 @@ if ($result && !$retry && !$auto_retry) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $score = process_quiz_submission($quizid, $courseid, $userid, $embedded);
     
-    // Obtener el mejor score guardado (puede ser diferente al actual si hubo intentos previos)
-    $best_result = $DB->get_record('learningstylesurvey_quiz_results', [
-        'userid' => $userid,
-        'quizid' => $quizid,
-        'courseid' => $courseid
-    ]);
-    $best_score = $best_result ? $best_result->score : $score;
+    // Obtener el mejor score guardado (MAX de todos los intentos)
+    $best_score_db = $DB->get_field_sql("
+        SELECT MAX(score) FROM {learningstylesurvey_quiz_results}
+        WHERE userid = ? AND quizid = ? AND courseid = ?
+    ", [$userid, $quizid, $courseid]);
+    // Usar el mayor entre el mejor guardado y el score actual
+    $best_score = max((int)$best_score_db, $score);
     
     echo "<div style='text-align:center; margin-top:20px;'>";
     echo "<h3>Resultado actual: {$score}%</h3>";
@@ -410,7 +410,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Aún tiene intentos - mostrar opciones normales
             $intentos_restantes = 3 - $consecutive_failures;
             echo "<div class='alert alert-info' style='text-align:center; margin-top:10px;'>";
-            echo "<p>📋 Te quedan <strong>{$intentos_restantes}</strong> intento(s) antes de ser bloqueado.</p>";
+            echo "<p> Intentos restantes: <strong>{$intentos_restantes}.</strong></p>";
             echo "</div>";
             
             // ============================================================
