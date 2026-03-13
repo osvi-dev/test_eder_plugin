@@ -44,6 +44,7 @@ if (!has_capability('moodle/course:update', $context)) {
     echo html_writer::tag('li', html_writer::link(new moodle_url('/mod/learningstylesurvey/quiz/crear_examen.php', ['courseid' => $course->id, 'cmid' => $id]), '📝 Crear Evaluación', ['style' => 'display:block; margin:10px 0;']));
     echo html_writer::tag('li', html_writer::link(new moodle_url('/mod/learningstylesurvey/quiz/manage_quiz.php', ['courseid' => $course->id, 'cmid' => $id]), '🛠 Gestionar exámenes', ['style' => 'display:block; margin:10px 0;']));
     echo html_writer::tag('li', html_writer::link(new moodle_url('/mod/learningstylesurvey/path/learningpath.php', ['courseid' => $course->id, 'cmid' => $id]), '🛤 Ruta de Aprendizaje', ['style' => 'display:block; margin:10px 0;']));
+    echo html_writer::tag('li', html_writer::link(new moodle_url('/mod/learningstylesurvey/estadisticas.php', ['id' => $id]), '📈 Estadísticas', ['style' => 'display:block; margin:10px 0;']));
     
     // Solo mostrar "Verificar Funcionalidades" a administradores (NO a profesores)
     if (is_siteadmin($USER)) {
