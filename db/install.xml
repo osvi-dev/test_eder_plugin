@@ -296,5 +296,22 @@
                 <KEY NAME="userid_fk" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id" />
             </KEYS>
         </TABLE>
+
+        <TABLE NAME="learningstylesurvey_unblocks" COMMENT="Registro de desbloqueos de estudiantes por el profesor">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true" />
+                <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="Estudiante desbloqueado" />
+                <FIELD NAME="quizid" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="Examen donde estaba bloqueado" />
+                <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="ID del curso" />
+                <FIELD NAME="unblockedby" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="Profesor que desbloqueó" />
+                <FIELD NAME="reason" TYPE="text" NOTNULL="false" COMMENT="Notas opcionales del profesor" />
+                <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" />
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id" />
+                <KEY NAME="userid_fk" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id" />
+                <KEY NAME="unblockedby_fk" TYPE="foreign" FIELDS="unblockedby" REFTABLE="user" REFFIELDS="id" />
+            </KEYS>
+        </TABLE>
     </TABLES>
 </XMLDB>

@@ -1,0 +1,470 @@
+/* ══════════════════════════════════════════════
+   Estudiantes Bloqueados – Learning Style Survey
+   ══════════════════════════════════════════════ */
+
+/* ── Page wrapper ── */
+.bloq-page {
+    max-width: 1100px;
+    margin: 0 auto 48px;
+    padding: 0 16px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+        'Helvetica Neue', Arial, sans-serif;
+}
+
+/* ── Header ── */
+.bloq-header {
+    text-align: center;
+    margin-bottom: 40px;
+    animation: bloqFadeDown .5s ease;
+}
+
+.bloq-header h2 {
+    font-size: 1.85rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #ef4444, #f97316);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 6px;
+}
+
+.bloq-header p {
+    color: #64748b;
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+@keyframes bloqFadeDown {
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Summary cards ── */
+.bloq-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 32px;
+}
+
+@media (max-width: 700px) {
+    .bloq-summary {
+        grid-template-columns: 1fr;
+    }
+}
+
+.bloq-summary-card {
+    background: #ffffff;
+    border: 1px solid #e8ecf1;
+    border-radius: 16px;
+    padding: 24px;
+    text-align: center;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+    animation: bloqCardIn .55s ease both;
+    transition: box-shadow .25s, transform .25s;
+}
+
+.bloq-summary-card:hover {
+    box-shadow: 0 8px 28px rgba(239, 68, 68, 0.08);
+    transform: translateY(-2px);
+}
+
+.bloq-summary-card:nth-child(1) { animation-delay: .05s; }
+.bloq-summary-card:nth-child(2) { animation-delay: .12s; }
+.bloq-summary-card:nth-child(3) { animation-delay: .19s; }
+
+.bloq-summary-card__icon {
+    font-size: 2rem;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.bloq-summary-card__number {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: #1e293b;
+    line-height: 1.1;
+}
+
+.bloq-summary-card__number--danger { color: #ef4444; }
+.bloq-summary-card__number--success { color: #10b981; }
+.bloq-summary-card__number--info { color: #6366f1; }
+
+.bloq-summary-card__label {
+    font-size: .82rem;
+    color: #64748b;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    margin-top: 4px;
+}
+
+/* ── Main card ── */
+.bloq-card {
+    background: #ffffff;
+    border: 1px solid #e8ecf1;
+    border-radius: 18px;
+    padding: 28px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+    animation: bloqCardIn .55s ease both;
+    animation-delay: .2s;
+    margin-bottom: 28px;
+    transition: box-shadow .25s, transform .25s;
+}
+
+.bloq-card:hover {
+    box-shadow: 0 8px 28px rgba(239, 68, 68, 0.08);
+    transform: translateY(-2px);
+}
+
+@keyframes bloqCardIn {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Card title ── */
+.bloq-card__title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 20px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.bloq-card__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    font-size: 1.15rem;
+    flex-shrink: 0;
+}
+
+.bloq-card__icon--blocked  { background: #fef2f2; }
+.bloq-card__icon--history  { background: #f0f9ff; }
+
+/* ── Tables ── */
+.bloq-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.88rem;
+}
+
+.bloq-table thead th {
+    background: #f8fafc;
+    color: #64748b;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: .75rem;
+    letter-spacing: .6px;
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.bloq-table thead th:first-child {
+    border-radius: 10px 0 0 0;
+}
+
+.bloq-table thead th:last-child {
+    border-radius: 0 10px 0 0;
+}
+
+.bloq-table tbody td {
+    padding: 12px 16px;
+    color: #334155;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+}
+
+.bloq-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.bloq-table tbody tr {
+    transition: background .15s;
+}
+
+.bloq-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+/* ── Status badges ── */
+.bloq-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 100px;
+    font-size: .78rem;
+    font-weight: 600;
+    letter-spacing: .3px;
+    white-space: nowrap;
+}
+
+.bloq-badge--blocked {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.bloq-badge--unblocked {
+    background: #ecfdf5;
+    color: #059669;
+}
+
+/* ── Score display ── */
+.bloq-score {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.bloq-score--fail { color: #dc2626; }
+.bloq-score--pass { color: #059669; }
+
+/* ── Failures count ── */
+.bloq-failures {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #fef2f2;
+    color: #dc2626;
+    font-weight: 700;
+    min-width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    font-size: .85rem;
+    padding: 0 8px;
+}
+
+/* ── Unblock button ── */
+.bloq-btn-unblock {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    font-size: .85rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all .25s;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+}
+
+.bloq-btn-unblock:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+    transform: translateY(-1px);
+    color: #ffffff;
+    text-decoration: none;
+}
+
+.bloq-btn-unblock:active {
+    transform: translateY(0);
+}
+
+/* ── Empty state ── */
+.bloq-empty {
+    text-align: center;
+    padding: 48px 20px;
+    color: #94a3b8;
+    font-size: 0.95rem;
+}
+
+.bloq-empty__icon {
+    font-size: 3rem;
+    display: block;
+    margin-bottom: 14px;
+}
+
+.bloq-empty__text {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 6px;
+}
+
+.bloq-empty__sub {
+    font-size: .88rem;
+    color: #94a3b8;
+}
+
+/* ── Alert messages ── */
+.bloq-alert {
+    padding: 16px 20px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    font-size: .92rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: bloqFadeDown .4s ease;
+}
+
+.bloq-alert--success {
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.bloq-alert--error {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+/* ── Back button ── */
+.bloq-back {
+    text-align: center;
+    margin-top: 12px;
+}
+
+.bloq-back a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 28px;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.92rem;
+    transition: all 0.2s;
+}
+
+.bloq-back a:hover {
+    background: #e2e8f0;
+    color: #1e293b;
+    text-decoration: none;
+}
+
+/* ── Modal dialog for reason ── */
+.bloq-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+}
+
+.bloq-modal-overlay.active {
+    display: flex;
+}
+
+.bloq-modal {
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 32px;
+    max-width: 480px;
+    width: 90%;
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.15);
+    animation: bloqModalIn .3s ease;
+}
+
+@keyframes bloqModalIn {
+    from { opacity: 0; transform: scale(0.95) translateY(10px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.bloq-modal h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 8px;
+}
+
+.bloq-modal p {
+    color: #64748b;
+    font-size: .9rem;
+    margin: 0 0 20px;
+}
+
+.bloq-modal textarea {
+    width: 100%;
+    min-height: 80px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px;
+    font-size: .9rem;
+    font-family: inherit;
+    resize: vertical;
+    margin-bottom: 20px;
+    transition: border-color .2s;
+}
+
+.bloq-modal textarea:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.bloq-modal__actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.bloq-modal__btn {
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: .9rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all .2s;
+}
+
+.bloq-modal__btn--cancel {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.bloq-modal__btn--cancel:hover {
+    background: #e2e8f0;
+}
+
+.bloq-modal__btn--confirm {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+}
+
+.bloq-modal__btn--confirm:hover {
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+    transform: translateY(-1px);
+}
+
+/* ── History date ── */
+.bloq-date {
+    font-size: .82rem;
+    color: #94a3b8;
+}
+
+/* ── Reason text ── */
+.bloq-reason {
+    font-size: .85rem;
+    color: #64748b;
+    font-style: italic;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bloq-reason--empty {
+    color: #cbd5e1;
+}

@@ -190,5 +190,25 @@ function xmldb_learningstylesurvey_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2025091024, 'learningstylesurvey');
     }
 
+    // Versión 2025091027 - Tabla de desbloqueos de estudiantes
+    if ($oldversion < 2025091027) {
+        $table = new xmldb_table('learningstylesurvey_unblocks');
+        if (!$dbman->table_exists($table)) {
+            $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+            $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+            $table->add_field('quizid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+            $table->add_field('courseid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+            $table->add_field('unblockedby', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+            $table->add_field('reason', XMLDB_TYPE_TEXT, null, null, false, null, null);
+            $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+            $table->add_key('userid_fk', XMLDB_KEY_FOREIGN, ['userid'], 'user', ['id']);
+            $table->add_key('unblockedby_fk', XMLDB_KEY_FOREIGN, ['unblockedby'], 'user', ['id']);
+            $dbman->create_table($table);
+        }
+
+        upgrade_mod_savepoint(true, 2025091027, 'learningstylesurvey');
+    }
+
     return true;
 }

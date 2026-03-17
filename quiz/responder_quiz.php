@@ -123,14 +123,32 @@ if ($result) {$retry = true;}
 
 // ============================================================
 // LÓGICA DE BLOQUEO POR 3 INTENTOS REPROBADOS CONSECUTIVOS
+// (CON SOPORTE PARA DESBLOQUEOS DEL PROFESOR)
 // ============================================================
 // Contar intentos reprobados consecutivos (desde el más reciente)
+// Si hay un desbloqueo activo, solo contar reprobaciones POSTERIORES al desbloqueo
 function count_consecutive_failures($DB, $userid, $quizid, $courseid) {
+    // Verificar si hay un desbloqueo para este usuario/quiz
+    $last_unblock = $DB->get_record_sql("
+        SELECT timecreated FROM {learningstylesurvey_unblocks}
+        WHERE userid = ? AND quizid = ? AND courseid = ?
+        ORDER BY timecreated DESC LIMIT 1
+    ", [$userid, $quizid, $courseid]);
+
+    $params = [$userid, $quizid, $courseid];
+    $where_extra = '';
+
+    if ($last_unblock && $last_unblock->timecreated) {
+        // Solo contar resultados POSTERIORES al desbloqueo
+        $where_extra = ' AND timecompleted > ?';
+        $params[] = $last_unblock->timecreated;
+    }
+
     $all_results = $DB->get_records_sql("
         SELECT id, score, timecompleted FROM {learningstylesurvey_quiz_results}
-        WHERE userid = ? AND quizid = ? AND courseid = ?
+        WHERE userid = ? AND quizid = ? AND courseid = ?{$where_extra}
         ORDER BY timecompleted DESC
-    ", [$userid, $quizid, $courseid]);
+    ", $params);
     
     $consecutive_failures = 0;
     foreach ($all_results as $r) {
