@@ -111,3 +111,7 @@ Ingresa al módulo
 - [Documentación para desarrolladores de Moodle](https://moodledev.io/)
 - [API de base de datos de Moodle](https://moodledev.io/docs/apis/core/dml)
 - [Guía de plugins de actividad](https://moodledev.io/docs/apis/plugins/activity)
+
+## Atribuciones
+Los iconos utilizados en este plugin han sido diseñados por:
+* Freepik desde [Flaticon](https://www.flaticon.es/) 

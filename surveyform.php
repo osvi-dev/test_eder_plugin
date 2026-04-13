@@ -83,6 +83,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
+// Verificar si el usuario ya contestó la encuesta
+$ya_contesto = $DB->record_exists('learningstylesurvey_responses', [
+    'userid'   => $USER->id,
+    'surveyid' => $cm->instance
+]);
+
+echo $OUTPUT->header();
+
+if ($ya_contesto) {
+    $url_menu    = (new moodle_url('/mod/learningstylesurvey/view.php',    ['id' => $id]))->out();
+    $url_results = (new moodle_url('/mod/learningstylesurvey/results.php', ['id' => $id]))->out();
+    echo '
+    <style>
+        .ils-already-done {
+            max-width: 560px;
+            margin: 60px auto;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,115,230,.12);
+            padding: 48px 40px;
+            text-align: center;
+            font-family: "Segoe UI", sans-serif;
+        }
+        .ils-already-done .ils-done-icon { font-size: 64px; line-height: 1; margin-bottom: 16px; }
+        .ils-already-done h2 { color: #1a1a2e; font-size: 1.6rem; margin: 0 0 12px; }
+        .ils-already-done p  { color: #555; font-size: 1rem; margin: 0 0 28px; line-height: 1.6; }
+        .ils-done-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #0073e6, #00c2ff);
+            color: #fff; font-size: 1rem; font-weight: 600;
+            padding: 12px 28px; border-radius: 50px;
+            text-decoration: none; transition: opacity .2s;
+        }
+        .ils-done-btn:hover { opacity: .85; color: #fff; }
+        .ils-done-results {
+            margin-top: 14px; display: block;
+            color: #0073e6; font-size: .95rem; text-decoration: underline;
+        }
+    </style>
+    <div class="ils-already-done">
+        <h2>Encuesta completada</h2>
+        <p>Ya has respondido la encuesta de estilos de aprendizaje.<br>
+           No es necesario contestarla de nuevo.</p>
+        <a class="ils-done-btn" href="' . $url_menu . '">Regresar al menú</a>
+        <a class="ils-done-results" href="' . $url_results . '">📊 Ver mis resultados</a>
+    </div>';
+    echo $OUTPUT->footer();
+    exit;
+}
+
 // Cargar preguntas y respuestas desde la base de datos
 $dbquestions = $DB->get_records('learningstylesurvey_ilsquestions', null, 'questionnumber ASC');
 $questionids = array_keys($dbquestions);
@@ -101,9 +151,8 @@ foreach ($allanswers as $ans) {
 // Dividir en 4 páginas de 11 preguntas
 $pages = array_chunk($shuffled, 11);
 $totalPages = count($pages);
-
-echo $OUTPUT->header();
 ?>
+
 
 <div class="ils-survey-container">
     <!-- Header -->

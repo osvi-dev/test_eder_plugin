@@ -20,6 +20,13 @@ echo $OUTPUT->heading("Menú principal");
 
 // ✅ Si es ESTUDIANTE (no tiene permiso para editar el curso)
 if (!has_capability('moodle/course:update', $context)) {
+    // Verificar si el alumno ya contestó la encuesta
+    $learningstylesurvey = $DB->get_record('learningstylesurvey', ['id' => $cm->instance], '*', MUST_EXIST);
+    $ya_contesto = $DB->record_exists('learningstylesurvey_responses', [
+        'userid'   => $USER->id,
+        'surveyid' => $cm->instance,
+    ]);
+
     echo "<div style='margin: 20px 0; text-align: center;'>";
     $vista_url = new moodle_url('/mod/learningstylesurvey/path/vista_estudiante.php', ['courseid' => $course->id, 'cmid' => $id]);
     echo "<a href='" . $vista_url->out() . "' style='text-decoration:none;'>";
@@ -29,7 +36,27 @@ if (!has_capability('moodle/course:update', $context)) {
 
     // ✅ Opciones disponibles para estudiantes
     echo html_writer::start_tag('ul', ['style' => 'list-style:none; padding:0; text-align:center; font-size:18px;']);
-    echo html_writer::tag('li', html_writer::link(new moodle_url('/mod/learningstylesurvey/surveyform.php', ['id' => $id]), '📋 Responder encuesta de estilos de aprendizaje', ['style' => 'display:block; margin:10px 0;']));
+
+    if ($ya_contesto) {
+        // Encuesta ya contestada: mostrar como texto con badge, no como enlace activo
+        $survey_label = '📋 Encuesta de estilos de aprendizaje '
+            . '<span style="background:#28a745; color:#fff; font-size:13px; font-weight:600; '
+            . 'padding:2px 10px; border-radius:50px; vertical-align:middle;">Ya contestada</span>';
+        echo html_writer::tag('li',
+            html_writer::link(
+                new moodle_url('/mod/learningstylesurvey/surveyform.php', ['id' => $id]),
+                $survey_label,
+                ['style' => 'display:block; margin:10px 0; color:#888; pointer-events:none;']
+            )
+        );
+    } else {
+        echo html_writer::tag('li', html_writer::link(
+            new moodle_url('/mod/learningstylesurvey/surveyform.php', ['id' => $id]),
+            '📋 Responder encuesta de estilos de aprendizaje',
+            ['style' => 'display:block; margin:10px 0;']
+        ));
+    }
+
     echo html_writer::tag('li', html_writer::link(new moodle_url('/mod/learningstylesurvey/results.php', ['id' => $id]), '📊 Ver resultados', ['style' => 'display:block; margin:10px 0;']));
     echo html_writer::end_tag('ul');
 
