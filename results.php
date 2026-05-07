@@ -8,7 +8,11 @@ $course = $DB->get_record('course', ['id' => $cm->course], '*', MUST_EXIST);
 $survey = $DB->get_record('learningstylesurvey', ['id' => $cm->instance], '*', MUST_EXIST);
 $context = context_module::instance($cm->id);
 
+require_once(__DIR__ . '/locallib.php');
 require_login($course, true, $cm);
+
+// Obtener todos los IDs de instancias del plugin en este curso
+$allsurveyids = learningstylesurvey_get_all_surveyids_in_course($course);
 
 $PAGE->set_url('/mod/learningstylesurvey/results.php', ['id' => $id]);
 $PAGE->set_context($context);
@@ -21,21 +25,29 @@ $PAGE->requires->css(new moodle_url('/mod/learningstylesurvey/style/results.css'
 
 echo $OUTPUT->header();
 
-// Obtener lista de usuarios que han respondido esta encuesta
-$sqlusers = "SELECT DISTINCT u.id, u.firstname, u.lastname
-             FROM {user} u
-             JOIN {learningstylesurvey_responses} r ON r.userid = u.id
-             WHERE r.surveyid = :surveyid
-             ORDER BY u.lastname, u.firstname";
-$respondents = $DB->get_records_sql($sqlusers, ['surveyid' => $survey->id]);
+// Obtener lista de usuarios que han respondido la encuesta en CUALQUIER instancia del curso
+if (!empty($allsurveyids)) {
+    list($insql, $inparams) = $DB->get_in_or_equal($allsurveyids, SQL_PARAMS_NAMED, 'sid');
+    $sqlusers = "SELECT DISTINCT u.id, u.firstname, u.lastname
+                 FROM {user} u
+                 JOIN {learningstylesurvey_responses} r ON r.userid = u.id
+                 WHERE r.surveyid $insql
+                 ORDER BY u.lastname, u.firstname";
+    $respondents = $DB->get_records_sql($sqlusers, $inparams);
+} else {
+    $respondents = [];
+}
 
-// Obtener userid para mostrar resultados (por GET), por defecto el usuario actual
-$selecteduserid = optional_param('userid', $USER->id, PARAM_INT);
+// Obtener userid para mostrar resultados (por GET)
+// Si el usuario actual ha respondido, mostrar sus resultados por defecto
+// Si no (ej. profesor), mostrar vista general (userid=0)
+$defaultuserid = array_key_exists($USER->id, $respondents) ? $USER->id : 0;
+$selecteduserid = optional_param('userid', $defaultuserid, PARAM_INT);
 
 // Verificar si el usuario seleccionado realmente respondió la encuesta, o es 'general' (0)
 if ($selecteduserid != 0 && !array_key_exists($selecteduserid, $respondents)) {
     echo $OUTPUT->notification('El usuario seleccionado no ha respondido la encuesta.', 'notifywarning');
-    $selecteduserid = $USER->id;
+    $selecteduserid = 0; // Mostrar vista general como fallback
 }
 
 // Inicializar conteo de estilos (capitalizado para display)
@@ -55,8 +67,9 @@ $styleDisplay = [
 ];
 
 if ($selecteduserid == 0) {
-    // Vista general: agregar puntajes de todos los usuarios
-    $allresponses = $DB->get_records('learningstylesurvey_responses', ['surveyid' => $survey->id]);
+    // Vista general: agregar puntajes de todos los usuarios del curso
+    list($insql2, $inparams2) = $DB->get_in_or_equal($allsurveyids, SQL_PARAMS_NAMED, 'sid');
+    $allresponses = $DB->get_records_select('learningstylesurvey_responses', "surveyid $insql2", $inparams2);
     if (!$allresponses) {
         echo $OUTPUT->notification("No hay respuestas registradas para esta encuesta.", 'notifymessage');
         echo $OUTPUT->footer();
@@ -71,10 +84,10 @@ if ($selecteduserid == 0) {
     $title = "Resultados generales";
     $titleIcon = "🌐";
 } else {
-    $responses = $DB->get_records('learningstylesurvey_responses', [
-        'userid' => $selecteduserid,
-        'surveyid' => $survey->id
-    ], 'ranking ASC');
+    list($insql3, $inparams3) = $DB->get_in_or_equal($allsurveyids, SQL_PARAMS_NAMED, 'sid');
+    $inparams3['userid'] = $selecteduserid;
+    $responses = $DB->get_records_select('learningstylesurvey_responses',
+        "userid = :userid AND surveyid $insql3", $inparams3, 'ranking ASC');
     if (!$responses) {
         echo $OUTPUT->notification("El usuario seleccionado no ha respondido la encuesta.", 'notifymessage');
         echo $OUTPUT->footer();

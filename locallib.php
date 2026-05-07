@@ -1,6 +1,40 @@
 <?php
 defined('MOODLE_INTERNAL') || die();
 
+/**
+ * Obtiene todos los IDs de instancias del plugin en un curso.
+ * Se usa para compartir la encuesta entre todas las actividades del plugin en el mismo curso.
+ *
+ * @param object $course  Objeto del curso
+ * @return array  Array de IDs de instancias (surveyids)
+ */
+function learningstylesurvey_get_all_surveyids_in_course($course) {
+    $allsurveyids = [];
+    $modinfo = get_fast_modinfo($course);
+    foreach ($modinfo->get_instances_of('learningstylesurvey') as $cminfo) {
+        $allsurveyids[] = $cminfo->instance;
+    }
+    return $allsurveyids;
+}
+
+/**
+ * Verifica si un usuario ya contestó la encuesta en cualquier instancia del curso.
+ *
+ * @param int    $userid       ID del usuario
+ * @param object $course       Objeto del curso
+ * @return bool  true si ya contestó
+ */
+function learningstylesurvey_user_has_responded($userid, $course) {
+    global $DB;
+    $allsurveyids = learningstylesurvey_get_all_surveyids_in_course($course);
+    if (empty($allsurveyids)) {
+        return false;
+    }
+    list($insql, $inparams) = $DB->get_in_or_equal($allsurveyids, SQL_PARAMS_NAMED, 'sid');
+    $inparams['userid'] = $userid;
+    return $DB->record_exists_select('learningstylesurvey_responses', "userid = :userid AND surveyid $insql", $inparams);
+}
+
 function learningstylesurvey_get_responses($surveyid) {
     global $DB;
     return $DB->get_records('learningstylesurvey_responses', ['surveyid' => $surveyid]);

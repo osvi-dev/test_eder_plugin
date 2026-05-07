@@ -9,6 +9,7 @@ $cm = get_coursemodule_from_id('learningstylesurvey', $id, 0, false, MUST_EXIST)
 $course = $DB->get_record('course', ['id' => $cm->course], '*', MUST_EXIST);
 $context = context_module::instance($cm->id);
 $courseid = $course->id;
+require_once(__DIR__ . '/locallib.php');
 
 $PAGE->set_context($context);
 $PAGE->requires->css(new moodle_url('/mod/learningstylesurvey/style/surveyform.css'));
@@ -20,11 +21,13 @@ $PAGE->set_heading(format_string($course->fullname));
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $now = time();
 
-    // Borrar respuestas anteriores del usuario actual
-    $DB->delete_records('learningstylesurvey_responses', [
-        'userid' => $USER->id,
-        'surveyid' => $cm->instance
-    ]);
+    // Borrar respuestas anteriores del usuario en CUALQUIER instancia del curso
+    $allsurveyids = learningstylesurvey_get_all_surveyids_in_course($course);
+    if (!empty($allsurveyids)) {
+        list($insql, $inparams) = $DB->get_in_or_equal($allsurveyids, SQL_PARAMS_NAMED, 'sid');
+        $inparams['userid'] = $USER->id;
+        $DB->delete_records_select('learningstylesurvey_responses', "userid = :userid AND surveyid $insql", $inparams);
+    }
 
     // Contar puntajes por estilo a partir de los answer IDs enviados
     $stylecounts = [
@@ -83,11 +86,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-// Verificar si el usuario ya contestó la encuesta
-$ya_contesto = $DB->record_exists('learningstylesurvey_responses', [
-    'userid'   => $USER->id,
-    'surveyid' => $cm->instance
-]);
+// Verificar si el usuario ya contestó la encuesta en CUALQUIER instancia del curso
+$ya_contesto = learningstylesurvey_user_has_responded($USER->id, $course);
 
 echo $OUTPUT->header();
 

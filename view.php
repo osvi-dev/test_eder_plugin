@@ -22,10 +22,9 @@ echo $OUTPUT->heading("Menú principal");
 if (!has_capability('moodle/course:update', $context)) {
     // Verificar si el alumno ya contestó la encuesta
     $learningstylesurvey = $DB->get_record('learningstylesurvey', ['id' => $cm->instance], '*', MUST_EXIST);
-    $ya_contesto = $DB->record_exists('learningstylesurvey_responses', [
-        'userid'   => $USER->id,
-        'surveyid' => $cm->instance,
-    ]);
+    // Verificar si el alumno ya contestó la encuesta en CUALQUIER instancia del curso
+    require_once(__DIR__ . '/locallib.php');
+    $ya_contesto = learningstylesurvey_user_has_responded($USER->id, $course);
 
     echo "<div style='margin: 20px 0; text-align: center;'>";
     $vista_url = new moodle_url('/mod/learningstylesurvey/path/vista_estudiante.php', ['courseid' => $course->id, 'cmid' => $id]);
