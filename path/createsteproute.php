@@ -54,17 +54,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $evaluaciones = optional_param('evaluacion_hidden', '', PARAM_RAW);
     
-    // Obtener campos de refuerzo y saltos
-    $temas_refuerzo = optional_param('temas_refuerzo', '', PARAM_RAW);
+    // Obtener campos de saltos
     $saltos_aprueba = optional_param('saltos_aprueba', '', PARAM_RAW);
     $saltos_reprueba = optional_param('saltos_reprueba', '', PARAM_RAW);
     $orden_items = optional_param('orden_hidden', '', PARAM_RAW);
-    
-    // Procesar temas de refuerzo
-    $refuerzo_ids = [];
-    if (!empty($temas_refuerzo)) {
-        $refuerzo_ids = array_filter(explode(',', $temas_refuerzo));
-    }
     
     // Procesar saltos
     $saltos_pass = [];
@@ -126,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $record->pathid = $pathid;
         $record->temaid = $tema_id;
         $record->orden = $orden + 1;
-        $record->isrefuerzo = in_array($tema_id, $refuerzo_ids) ? 1 : 0;
+        $record->isrefuerzo = 0;
         $DB->insert_record('learningstylesurvey_path_temas', $record);
     }
 
@@ -375,15 +368,7 @@ echo $OUTPUT->heading("Crear Ruta de Aprendizaje");
         border-radius: 8px;
         margin-bottom: 10px;
     }
-    
-    .route-item.refuerzo {
-        border-left: 4px solid #ff9800;
-        background: linear-gradient(90deg, #fff8e1 0%, #ffffff 20%);
-    }
-    
-    .route-item.refuerzo .route-item-type {
-        color: #f57c00;
-    }
+
     
     .btn-modern.btn-primary-modern {
         background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
@@ -513,8 +498,7 @@ function agregarTema() {
             id: temaId,
             name: temaName,
             order: routeItems.length + 1,
-            uniqueId: ++itemCounter,
-            isrefuerzo: false
+            uniqueId: ++itemCounter
         };
         
         routeItems.push(newItem);
@@ -589,15 +573,13 @@ function renderRoutePreview() {
     routeItems.forEach((item, index) => {
         const typeIcon = item.type === 'tema' ? '📚' : '📋';
         const typeLabel = item.type === 'tema' ? 'Tema' : 'Evaluación';
-        const isRefuerzo = item.isrefuerzo ? ' (Refuerzo)' : '';
-        const refuerzoClass = item.isrefuerzo ? ' refuerzo' : '';
         
         html += `
-            <div class="route-item ${item.type}${refuerzoClass}" data-unique-id="${item.uniqueId}">
+            <div class="route-item ${item.type}" data-unique-id="${item.uniqueId}">
                 <div class="route-item-header">
-                    <span class="route-item-type">${typeIcon} ${typeLabel}${isRefuerzo}</span>
+                    <span class="route-item-type">${typeIcon} ${typeLabel}</span>
                     <div class="route-item-controls">
-                        <button type="button" class="btn-modern btn-sm" onclick="editItem(${item.uniqueId})" title="Configurar">⚙️</button>
+                        ${item.type === 'evaluacion' ? `<button type="button" class="btn-modern btn-sm" onclick="editItem(${item.uniqueId})" title="Configurar">⚙️</button>` : ''}
                         ${index > 0 ? `<button type="button" class="btn-modern btn-sm" onclick="moveItem(${item.uniqueId}, 'up')" title="Mover arriba">⬆️</button>` : ''}
                         ${index < routeItems.length - 1 ? `<button type="button" class="btn-modern btn-sm" onclick="moveItem(${item.uniqueId}, 'down')" title="Mover abajo">⬇️</button>` : ''}
                         <button type="button" class="btn-modern btn-sm" onclick="removeItem(${item.uniqueId})" title="Eliminar" style="background: #dc3545; color: white;">🗑️</button>
@@ -619,7 +601,7 @@ function renderRoutePreview() {
 
 function getItemDescription(item) {
     if (item.type === 'tema') {
-        return item.isrefuerzo ? 'Tema de refuerzo - solo aparece cuando es necesario' : 'Incluye todos los recursos asociados';
+        return 'Incluye todos los recursos asociados';
     } else {
         return 'Evaluación con preguntas';
     }
@@ -655,47 +637,20 @@ function editItem(uniqueId) {
     const item = routeItems.find(item => item.uniqueId === uniqueId);
     if (!item) return;
     
-    if (item.type === 'tema') {
-        editTemaItem(item);
-    } else {
+    if (item.type === 'evaluacion') {
         editEvaluacionItem(item);
     }
 }
 
-function editTemaItem(item) {
-    const isRefuerzo = item.isrefuerzo || false;
-    
-    const html = `
-        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 400px;">
-            <h4>⚙️ Configurar Tema: ${item.name}</h4>
-            <div style="margin: 15px 0;">
-                <label style="display: flex; align-items: center; gap: 8px;">
-                    <input type="checkbox" id="tema-refuerzo-${item.uniqueId}" ${isRefuerzo ? 'checked' : ''}>
-                    <span>🔄 Es tema de refuerzo</span>
-                </label>
-                <small style="color: #6c757d; display: block; margin-top: 5px;">
-                    Los temas de refuerzo solo aparecen cuando el estudiante necesita apoyo adicional
-                </small>
-            </div>
-            <div style="margin-top: 20px;">
-                <button type="button" class="btn-modern btn-primary-modern" onclick="saveTemaConfig(${item.uniqueId})">💾 Guardar</button>
-                <button type="button" class="btn-modern btn-secondary-modern" onclick="closeModal()" style="margin-left: 10px;">❌ Cancelar</button>
-            </div>
-        </div>
-    `;
-    
-    showModal(html);
-}
+
 
 function editEvaluacionItem(item) {
     const temaOptions = routeItems.filter(r => r.type === 'tema').map(r => 
         `<option value="${r.uniqueId}" ${item.passredirect == r.uniqueId ? 'selected' : ''}>${r.name}</option>`
     ).join('');
     
-    // Permitir saltos a cualquier tema, no solo refuerzo
     const failOptions = routeItems.filter(r => r.type === 'tema').map(r => {
-        const refuerzoLabel = r.isrefuerzo ? ' (Refuerzo)' : '';
-        return `<option value="${r.uniqueId}" ${item.failredirect == r.uniqueId ? 'selected' : ''}>${r.name}${refuerzoLabel}</option>`;
+        return `<option value="${r.uniqueId}" ${item.failredirect == r.uniqueId ? 'selected' : ''}>${r.name}</option>`;
     }).join('');
     
     const html = `
@@ -719,7 +674,7 @@ function editEvaluacionItem(item) {
                     ${failOptions}
                 </select>
                 <small style="color: #6c757d; display: block; margin-top: 5px;">
-                    Puede saltar a cualquier tema, finalizar la ruta, o continuar normalmente. Los temas de refuerzo se recomiendan para apoyo adicional.
+                    Puede saltar a cualquier tema, finalizar la ruta, o continuar normalmente.
                 </small>
             </div>
             
@@ -733,16 +688,7 @@ function editEvaluacionItem(item) {
     showModal(html);
 }
 
-function saveTemaConfig(uniqueId) {
-    const item = routeItems.find(item => item.uniqueId === uniqueId);
-    if (!item) return;
-    
-    item.isrefuerzo = document.getElementById(`tema-refuerzo-${uniqueId}`).checked;
-    
-    closeModal();
-    renderRoutePreview();
-    updateHiddenFields();
-}
+
 
 function saveEvaluacionConfig(uniqueId) {
     const item = routeItems.find(item => item.uniqueId === uniqueId);
@@ -820,8 +766,7 @@ function updateHiddenFields() {
     const evaluaciones = routeItems.filter(item => item.type === 'evaluacion').map(item => item.id);
     const orden = routeItems.map(item => `${item.type}:${item.id}`);
     
-    // Campos de refuerzo
-    const temasRefuerzo = routeItems.filter(item => item.type === 'tema' && item.isrefuerzo).map(item => item.id);
+
     
     // Campos de saltos de evaluación
     const saltosAprueba = [];
@@ -854,15 +799,7 @@ function updateHiddenFields() {
     document.getElementById('evaluacion_hidden').value = evaluaciones.join(',');
     document.getElementById('orden_hidden').value = orden.join('|');
     
-    // Crear campos ocultos para refuerzo y saltos si no existen
-    if (!document.getElementById('refuerzo_hidden')) {
-        const refuerzoInput = document.createElement('input');
-        refuerzoInput.type = 'hidden';
-        refuerzoInput.id = 'refuerzo_hidden';
-        refuerzoInput.name = 'temas_refuerzo';
-        document.getElementById('route-form').appendChild(refuerzoInput);
-    }
-    
+    // Crear campos ocultos para saltos si no existen
     if (!document.getElementById('saltos_aprueba_hidden')) {
         const saltosApruebaInput = document.createElement('input');
         saltosApruebaInput.type = 'hidden';
@@ -879,7 +816,6 @@ function updateHiddenFields() {
         document.getElementById('route-form').appendChild(saltosRepruebaInput);
     }
     
-    document.getElementById('refuerzo_hidden').value = temasRefuerzo.join(',');
     document.getElementById('saltos_aprueba_hidden').value = saltosAprueba.join('|');
     document.getElementById('saltos_reprueba_hidden').value = saltosReprueba.join('|');
 }

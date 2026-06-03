@@ -67,8 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guardar'])) {
     }
     $evaluaciones = optional_param('evaluacion_hidden', '', PARAM_RAW);
     
-    // Obtener campos de refuerzo y saltos
-    $temas_refuerzo = optional_param('temas_refuerzo', '', PARAM_RAW);
+    // Obtener campos de saltos
     $saltos_aprueba = optional_param('saltos_aprueba', '', PARAM_RAW);
     $saltos_reprueba = optional_param('saltos_reprueba', '', PARAM_RAW);
     $orden_items = optional_param('orden_hidden', '', PARAM_RAW);
@@ -120,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guardar'])) {
                 $path_tema->pathid = $pathid;
                 $path_tema->temaid = $tema_id;
                 $path_tema->orden = $step_number;
-                $path_tema->isrefuerzo = strpos($temas_refuerzo, $tema_id) !== false ? 1 : 0;
+                $path_tema->isrefuerzo = 0;
                 $DB->insert_record('learningstylesurvey_path_temas', $path_tema);
 
                 // Obtener recursos del tema para learningpath_steps
@@ -411,15 +410,6 @@ echo '<link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/ui-l
         margin-bottom: 10px;
     }
     
-    .route-item.refuerzo {
-        border-left: 4px solid #ff9800;
-        background: linear-gradient(90deg, #fff8e1 0%, #ffffff 20%);
-    }
-    
-    .route-item.refuerzo .route-item-type {
-        background: #ff9800;
-        color: white;
-    }
     
     .btn-modern.btn-primary-modern {
         background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
@@ -526,7 +516,7 @@ echo '<link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/ui-l
     <!-- Campos ocultos para envío -->
     <input type="hidden" name="temas_hidden" id="temas_hidden">
     <input type="hidden" name="evaluacion_hidden" id="evaluacion_hidden">
-    <input type="hidden" name="temas_refuerzo" id="temas_refuerzo">
+
     <input type="hidden" name="saltos_aprueba" id="saltos_aprueba">
     <input type="hidden" name="saltos_reprueba" id="saltos_reprueba">
     <input type="hidden" name="orden_hidden" id="orden_hidden">
@@ -610,37 +600,6 @@ $(document).ready(function() {
         return recursoInfo.tema_name;
     };
 
-    // Función para verificar si un tema es de refuerzo basado en el ID de recurso
-    window.isTemaRefuerzoByResourceId = function(resourceId) {
-        // Manejar casos especiales
-        if (resourceId == -1 || resourceId == 0 || !resourceId) {
-            return false;
-        }
-        
-        const recursosData = <?php 
-            $recursos_tema_map = $DB->get_records_sql("
-                SELECT r.id as resource_id, t.id as tema_id
-                FROM {learningstylesurvey_resources} r
-                JOIN {learningstylesurvey_temas} t ON r.tema = t.id  
-                WHERE r.courseid = ? AND r.userid = ?
-            ", array($courseid, $USER->id));
-            
-            $map = array();
-            foreach ($recursos_tema_map as $item) {
-                $map[$item->resource_id] = $item->tema_id;
-            }
-            echo json_encode($map);
-        ?>;
-        
-        let temaId = recursosData[resourceId] || recursosData[String(resourceId)] || recursosData[parseInt(resourceId)];
-        if (!temaId) {
-            return false;
-        }
-        
-        // Buscar si este tema está marcado como refuerzo en routeItems
-        const temaItem = routeItems.find(item => item.type === 'tema' && item.id == temaId);
-        return temaItem ? temaItem.es_refuerzo : false;
-    };
 
     // Debug: mostrar datos cargados
     console.log('Datos de temas cargados:', temasData);
@@ -703,16 +662,11 @@ $(document).ready(function() {
                     }
                     
                     if (!$tema_ya_agregado) {
-                        // Verificar si es tema de refuerzo
-                        $path_tema = $DB->get_record('learningstylesurvey_path_temas', 
-                            ['pathid' => $pathid, 'temaid' => $resource->tema]);
-                        
                         $all_items[] = [
                             'type' => 'tema',
                             'id' => $resource->tema,
                             'name' => $tema->tema,
-                            'orden' => $step->stepnumber,
-                            'es_refuerzo' => $path_tema ? $path_tema->isrefuerzo : 0
+                            'orden' => $step->stepnumber
                         ];
                     }
                 }
@@ -730,7 +684,6 @@ $(document).ready(function() {
                 id: {$item['id']},
                 name: " . json_encode($item['name']) . ",
                 orden: {$item['orden']},
-                es_refuerzo: " . ($item['es_refuerzo'] ? 'true' : 'false') . ",
                 passredirect: null,
                 failredirect: null
             });\n";
@@ -775,20 +728,11 @@ $(document).ready(function() {
 
         let html = '<div id="sortable-route">';
         routeItems.forEach((item, index) => {
-            const isRefuerzo = item.es_refuerzo;
-            const refuerzoClass = isRefuerzo ? ' refuerzo' : '';
-            const refuerzoText = isRefuerzo ? ' (Refuerzo)' : '';
-            
             html += `
-                <div class="route-item ${item.type}${refuerzoClass}" data-unique-id="${item.uniqueId}">
+                <div class="route-item ${item.type}" data-unique-id="${item.uniqueId}">
                     <div class="route-item-header">
-                        <span class="route-item-type">${item.type.toUpperCase()}${refuerzoText}</span>
+                        <span class="route-item-type">${item.type.toUpperCase()}</span>
                         <div class="route-item-controls">`;
-            
-            if (item.type === 'tema') {
-                const toggleText = isRefuerzo ? 'Normal' : 'Refuerzo';
-                html += `<button type="button" class="btn btn-sm btn-secondary toggle-refuerzo" data-unique-id="${item.uniqueId}">${toggleText}</button>`;
-            }
             
             if (item.type === 'evaluacion') {
                 html += `<button type="button" class="btn btn-sm btn-secondary config-saltos" data-unique-id="${item.uniqueId}">⚙️ Saltos</button>`;
@@ -817,9 +761,7 @@ $(document).ready(function() {
                     } else {
                         // Los saltos apuntan a IDs de recursos, obtener el nombre del tema
                         const failText = window.getTemaNameByResourceId(item.failredirect);
-                        const isRefuerzo = window.isTemaRefuerzoByResourceId(item.failredirect);
-                        const labelText = isRefuerzo ? ' (Refuerzo)' : ' (No Refuerzo)';
-                        html += `<small>❌ Si reprueba → ${failText}${labelText}</small>`;
+                        html += `<small>❌ Si reprueba → ${failText}</small>`;
                     }
                 }
             }
@@ -886,7 +828,7 @@ $(document).ready(function() {
     function updateHiddenFields() {
         const temas = routeItems.filter(item => item.type === 'tema').map(item => item.id);
         const evaluaciones = routeItems.filter(item => item.type === 'evaluacion').map(item => item.id);
-        const temasRefuerzo = routeItems.filter(item => item.type === 'tema' && item.es_refuerzo).map(item => item.id);
+
         
         const saltosAprueba = routeItems
             .filter(item => item.type === 'evaluacion' && item.passredirect !== null && item.passredirect !== undefined)
@@ -903,7 +845,7 @@ $(document).ready(function() {
         
         $('#temas_hidden').val(temas.join(','));
         $('#evaluacion_hidden').val(evaluaciones.join(','));
-        $('#temas_refuerzo').val(temasRefuerzo.join(','));
+
         $('#saltos_aprueba').val(saltosAprueba);
         $('#saltos_reprueba').val(saltosReprueba);
         $('#orden_hidden').val(orden);
@@ -931,7 +873,7 @@ $(document).ready(function() {
             type: 'tema',
             id: parseInt(temaId),
             name: temaNombre,
-            es_refuerzo: false,
+
             passredirect: null,
             failredirect: null
         });
@@ -983,16 +925,7 @@ $(document).ready(function() {
         }
     });
 
-    // Toggle refuerzo
-    $(document).on('click', '.toggle-refuerzo', function() {
-        const uniqueId = $(this).data('unique-id');
-        const item = routeItems.find(item => item.uniqueId === uniqueId);
-        if (item) {
-            item.es_refuerzo = !item.es_refuerzo;
-            updatePreview();
-            updateHiddenFields();
-        }
-    });
+
 
     // Configurar saltos
     $(document).on('click', '.config-saltos', function() {
@@ -1020,9 +953,7 @@ $(document).ready(function() {
             const recursoId = getFirstResourceIdOfTema(r.id);
             
             optionsPass += `<option value="${recursoId}" ${item.passredirect == recursoId ? 'selected' : ''}>${r.name}</option>`;
-            // Solo mostrar "(Refuerzo)" si el tema realmente está marcado como refuerzo
-            const labelText = r.es_refuerzo ? ` (Refuerzo)` : ` (No Refuerzo)`;
-            optionsFail += `<option value="${recursoId}" ${item.failredirect == recursoId ? 'selected' : ''}>${r.name}${labelText}</option>`;
+            optionsFail += `<option value="${recursoId}" ${item.failredirect == recursoId ? 'selected' : ''}>${r.name}</option>`;
         });
 
         const html = `
