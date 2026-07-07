@@ -134,3 +134,59 @@ function log_style_event($event_type, $data) {
 
     $DB->insert_record('learningstylesurvey_style_log', $record);
 }
+
+/**
+ * Busca el siguiente paso apropiado en una ruta de aprendizaje.
+ *
+ * Prioriza recursos del estilo del alumno, pero si el resultado sería un examen
+ * y existen recursos de cualquier estilo antes de ese examen que el alumno no ha visto,
+ * se muestran esos recursos primero (fallback). Esto previene que el alumno sea enviado
+ * directamente al examen cuando su estilo no tiene recursos en un tema.
+ *
+ * @param int    $pathid             ID de la ruta de aprendizaje
+ * @param string $style              Estilo de aprendizaje del alumno
+ * @param int    $courseid           ID del curso
+ * @param int    $after_stepnumber   Buscar pasos con stepnumber mayor a este valor (0 para el primer paso)
+ * @return object|false              El paso encontrado, o false si no hay más pasos
+ */
+function learningstylesurvey_find_next_step($pathid, $style, $courseid, $after_stepnumber = 0) {
+    global $DB;
+
+    // 1. Buscar el siguiente paso que coincida con el estilo del alumno o sea un examen
+    $step = $DB->get_record_sql("
+        SELECT s.*
+        FROM {learningpath_steps} s
+        LEFT JOIN {learningstylesurvey_resources} r ON s.resourceid = r.id AND s.istest = 0
+        LEFT JOIN {learningstylesurvey_path_temas} pt ON pt.temaid = r.tema AND pt.pathid = s.pathid
+        WHERE s.pathid = ? AND s.stepnumber > ?
+        AND (
+            (s.istest = 1) OR 
+            (s.istest = 0 AND r.style = ? AND r.courseid = ? AND (pt.isrefuerzo = 0 OR pt.isrefuerzo IS NULL))
+        )
+        ORDER BY s.stepnumber ASC
+        LIMIT 1
+    ", [$pathid, $after_stepnumber, $style, $courseid]);
+
+    // 2. Si el resultado es un examen, verificar que no haya recursos sin ver antes de él
+    //    (de cualquier estilo, no solo el del alumno). Esto previene saltar temas completos.
+    if ($step && $step->istest) {
+        $resource_before_exam = $DB->get_record_sql("
+            SELECT s.*
+            FROM {learningpath_steps} s
+            JOIN {learningstylesurvey_resources} r ON s.resourceid = r.id
+            LEFT JOIN {learningstylesurvey_path_temas} pt ON pt.temaid = r.tema AND pt.pathid = s.pathid
+            WHERE s.pathid = ? AND s.stepnumber > ? AND s.stepnumber < ?
+            AND s.istest = 0 AND r.courseid = ?
+            AND (pt.isrefuerzo = 0 OR pt.isrefuerzo IS NULL)
+            ORDER BY s.stepnumber ASC
+            LIMIT 1
+        ", [$pathid, $after_stepnumber, $step->stepnumber, $courseid]);
+
+        if ($resource_before_exam) {
+            // Hay recursos antes del examen que el alumno no ha visto → mostrar esos primero
+            $step = $resource_before_exam;
+        }
+    }
+
+    return $step;
+}

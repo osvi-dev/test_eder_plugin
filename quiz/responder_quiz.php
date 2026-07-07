@@ -363,17 +363,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 
                 // Buscar si hay más pasos después de este examen
-                $nextstep = $DB->get_record_sql("
-                    SELECT s.* FROM {learningpath_steps} s
-                    LEFT JOIN {learningstylesurvey_resources} r ON s.resourceid = r.id AND s.istest = 0
-                    LEFT JOIN {learningstylesurvey_path_temas} pt ON pt.temaid = r.tema AND pt.pathid = s.pathid
-                    WHERE s.pathid = ? AND s.stepnumber > ?
-                    AND (
-                        (s.istest = 1) OR 
-                        (s.istest = 0 AND r.style = ? AND r.courseid = ? AND (pt.isrefuerzo = 0 OR pt.isrefuerzo IS NULL))
-                    )
-                    ORDER BY s.stepnumber ASC LIMIT 1
-                ", [$step->pathid, $step->stepnumber, $style, $courseid]);
+                $nextstep = learningstylesurvey_find_next_step($step->pathid, $style, $courseid, $step->stepnumber);
                 
                 if ($nextstep) {
                     // Hay más pasos - continuar con la ruta
@@ -732,17 +722,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             if ($style) {
                 // Buscar si hay más pasos después de este examen
-                $nextstep = $DB->get_record_sql("
-                    SELECT s.* FROM {learningpath_steps} s
-                    LEFT JOIN {learningstylesurvey_resources} r ON s.resourceid = r.id AND s.istest = 0
-                    LEFT JOIN {learningstylesurvey_path_temas} pt ON pt.temaid = r.tema AND pt.pathid = s.pathid
-                    WHERE s.pathid = ? AND s.stepnumber > ?
-                    AND (
-                        (s.istest = 1) OR 
-                        (s.istest = 0 AND r.style = ? AND r.courseid = ? AND (pt.isrefuerzo = 0 OR pt.isrefuerzo IS NULL))
-                    )
-                    ORDER BY s.stepnumber ASC LIMIT 1
-                ", [$step->pathid, $step->stepnumber, $style, $courseid]);
+                $nextstep = learningstylesurvey_find_next_step($step->pathid, $style, $courseid, $step->stepnumber);
                 
                 if ($nextstep) {
                     // Hay más pasos - continuar con la ruta

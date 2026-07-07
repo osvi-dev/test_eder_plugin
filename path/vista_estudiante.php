@@ -1,6 +1,7 @@
 <?php
 require_once("../../../config.php");
 require_once("$CFG->libdir/formslib.php");
+require_once(__DIR__ . '/../locallib.php');
 global $DB, $USER, $PAGE, $OUTPUT;
 
 $courseid = required_param('courseid', PARAM_INT);
@@ -450,17 +451,7 @@ if ($tema_salto) {
                     
                     if ($current_tema_step) {
                         // Buscar el siguiente paso después de TODOS los pasos de este tema
-                        $next_step = $DB->get_record_sql("
-                            SELECT s.* FROM {learningpath_steps} s
-                            LEFT JOIN {learningstylesurvey_resources} r ON s.resourceid = r.id AND s.istest = 0
-                            LEFT JOIN {learningstylesurvey_path_temas} pt ON pt.temaid = r.tema AND pt.pathid = s.pathid
-                            WHERE s.pathid = ? AND s.stepnumber > ? 
-                            AND (
-                                (s.istest = 1) OR 
-                                (s.istest = 0 AND r.style = ? AND r.courseid = ? AND (pt.isrefuerzo = 0 OR pt.isrefuerzo IS NULL))
-                            )
-                            ORDER BY s.stepnumber ASC LIMIT 1
-                        ", [$pathid, $current_tema_step->stepnumber, $style, $courseid]);
+                        $next_step = learningstylesurvey_find_next_step($pathid, $style, $courseid, $current_tema_step->stepnumber);
                         
                         if ($next_step) {
                             // Hay un siguiente paso - continuar desde aquí
@@ -924,19 +915,7 @@ if ($show_refuerzo && $tema_refuerzo_id) {
             
             if (!$resource_check) {
                 // Si el paso actual no coincide con el estilo o es refuerzo, buscar el siguiente paso apropiado
-                $potential_step = $DB->get_record_sql("
-                    SELECT s.*
-                    FROM {learningpath_steps} s
-                    LEFT JOIN {learningstylesurvey_resources} r ON s.resourceid = r.id AND s.istest = 0
-                    LEFT JOIN {learningstylesurvey_path_temas} pt ON pt.temaid = r.tema AND pt.pathid = s.pathid
-                    WHERE s.pathid = ? AND s.stepnumber > ?
-                    AND (
-                        (s.istest = 1) OR 
-                        (s.istest = 0 AND r.style = ? AND r.courseid = ? AND (pt.isrefuerzo = 0 OR pt.isrefuerzo IS NULL))
-                    )
-                    ORDER BY s.stepnumber ASC
-                    LIMIT 1
-                ", [$pathid, $step->stepnumber, $style, $courseid]);
+                $potential_step = learningstylesurvey_find_next_step($pathid, $style, $courseid, $step->stepnumber);
                 
                 if ($potential_step) {
                     $step = $potential_step;
@@ -947,20 +926,8 @@ if ($show_refuerzo && $tema_refuerzo_id) {
         }
     } else {
         // Si no hay progreso, crear uno y mostrar el primer paso disponible
-        // Buscar el primer paso que sea adecuado: examen O recurso para su estilo (NO refuerzo)
-        $step = $DB->get_record_sql("
-            SELECT s.*
-            FROM {learningpath_steps} s
-            LEFT JOIN {learningstylesurvey_resources} r ON s.resourceid = r.id AND s.istest = 0
-            LEFT JOIN {learningstylesurvey_path_temas} pt ON pt.temaid = r.tema AND pt.pathid = s.pathid
-            WHERE s.pathid = ? 
-            AND (
-                (s.istest = 1) OR 
-                (s.istest = 0 AND r.style = ? AND r.courseid = ? AND (pt.isrefuerzo = 0 OR pt.isrefuerzo IS NULL))
-            )
-            ORDER BY s.stepnumber ASC
-            LIMIT 1
-        ", [$pathid, $style, $courseid]);
+        // Usar función centralizada que previene saltar al examen si hay recursos pendientes
+        $step = learningstylesurvey_find_next_step($pathid, $style, $courseid, 0);
 
         if ($step) {
             // Crear registro de progreso
@@ -990,19 +957,7 @@ if ($show_refuerzo && $tema_refuerzo_id) {
                 
                 if ($quiz_result) {
                     // Examen ya aprobado, avanzar al siguiente paso automáticamente
-                    $potential_next = $DB->get_record_sql("
-                        SELECT s.*
-                        FROM {learningpath_steps} s
-                        LEFT JOIN {learningstylesurvey_resources} r ON s.resourceid = r.id AND s.istest = 0
-                        LEFT JOIN {learningstylesurvey_path_temas} pt ON pt.temaid = r.tema AND pt.pathid = s.pathid
-                        WHERE s.pathid = ? AND s.stepnumber > ?
-                        AND (
-                            (s.istest = 1) OR 
-                            (s.istest = 0 AND r.style = ? AND r.courseid = ? AND (pt.isrefuerzo = 0 OR pt.isrefuerzo IS NULL))
-                        )
-                        ORDER BY s.stepnumber ASC
-                        LIMIT 1
-                    ", [$pathid, $step->stepnumber, $style, $courseid]);
+                    $potential_next = learningstylesurvey_find_next_step($pathid, $style, $courseid, $step->stepnumber);
                     
                     if ($potential_next) {
                         // Actualizar progreso al siguiente paso
